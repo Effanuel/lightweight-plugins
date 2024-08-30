@@ -276,9 +276,21 @@ export class RectangleDrawingTool {
   }
 
   private keyDownListener = (event: KeyboardEvent) => {
-    if (event.key === "Escape") {
-      this.stopDrawing();
-      this._removePreviewRectangle();
+    switch (event.key) {
+      case "Escape":
+        this.stopDrawing();
+        this._removePreviewRectangle();
+        break;
+      case "Backspace":
+        this._rectangles.forEach((rectangle) => {
+          if (rectangle.isSelected) {
+            this._removeRectangle(this._rectangles[this._rectangles.length - 1]);
+            this._rectangles.pop();
+          }
+        });
+        this._series?.applyOptions({}); // Triggers update to completely remove the primitive
+
+        break;
     }
   };
 

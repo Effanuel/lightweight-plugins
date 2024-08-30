@@ -26,7 +26,7 @@ export abstract class PluginBase implements Series {
   private _mouseHandlers = new MouseHandlers();
   protected isHovered = false;
   protected isDragging = false;
-  protected isSelected = false;
+  public isSelected = false;
   protected hoveringPoint: "p1" | "p2" | "p3" | "p4" | null = null;
   protected draggingPoint: "p1" | "p2" | "p3" | "p4" | null = null;
   public p3: Point;
