@@ -3,6 +3,7 @@ import {
   IChartApi,
   ISeriesApi,
   ISeriesPrimitive,
+  PrimitiveHoveredItem,
   SeriesAttachedParameter,
   SeriesOptionsMap,
   Time,
@@ -10,6 +11,9 @@ import {
 import { ensureDefined } from "../utils/assertions";
 import { MouseHandlers, MousePosition } from "../utils/mouse";
 import { arePointsClose } from "../utils/draw";
+
+// TODO: remove more dead code
+// TODO: add submit and cancel buttons
 
 interface Point {
   time: Time;
@@ -37,6 +41,24 @@ export abstract class PluginBase implements Series {
 
     const profitMargin = Math.abs(this.p1.price - this.p2.price) * 3;
     this.p4 = { time: this.p2.time, price: this.p1.price + (this.side === "long" ? profitMargin : -profitMargin) };
+  }
+
+  hitTest(x: number, y: number): PrimitiveHoveredItem | null {
+    if (!this.isHovered) return null;
+    const cursorStyle = (() => {
+      switch (this.hoveringPoint) {
+        case "p1":
+          return "ew-resize";
+        case "p2":
+        case "p4":
+          return "ns-resize";
+        case "p3":
+          return "move";
+        default:
+          return "pointer";
+      }
+    })();
+    return { cursorStyle, zOrder: "top", externalId: "base" };
   }
 
   protected dataUpdated?(scope: DataChangedScope): void;
