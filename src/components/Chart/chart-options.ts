@@ -26,6 +26,7 @@ export const ChartOptions: DeepPartial<ChartOptionsI> = {
   layout: {
     background: { type: ColorType.Solid, color: twBlue },
     textColor: "white",
+    attributionLogo: false,
   },
   crosshair: {
     mode: CrosshairMode.Normal,

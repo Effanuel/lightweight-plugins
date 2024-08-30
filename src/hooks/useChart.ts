@@ -14,7 +14,7 @@ export default function useChart() {
     return (chart.current = lightWeightCreateChart(container, options));
   };
 
-  const createCandlesticks = (data: Candle[]) => {
+  const createCandlesticks = (data: Candle[]): ISeriesApi<"Candlestick"> => {
     if (!chart.current) {
       return console.warn("Failed to init candlesticks. Chart is undefined") as any;
     }
@@ -25,7 +25,8 @@ export default function useChart() {
     });
     candlestickSeries.setData(data);
     series.current = candlestickSeries;
+    return candlestickSeries;
   };
 
-  return { createChart, createCandlesticks };
+  return { chart, createChart, createCandlesticks };
 }
