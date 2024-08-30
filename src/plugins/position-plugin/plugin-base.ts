@@ -21,16 +21,16 @@ type Series = ISeriesPrimitive<Time> & { p1: Point; p2: Point };
 export abstract class PluginBase implements Series {
   private _chart: IChartApi | undefined = undefined;
   private _series: ISeriesApi<keyof SeriesOptionsMap> | undefined = undefined;
-  public _mouseEventParams: MousePosition | null = null;
-  public startingDragPosition: MousePosition | null = null;
-  private _mouseHandlers = new MouseHandlers();
+  private mouseHandlers = new MouseHandlers();
   protected isHovered = false;
   protected isDragging = false;
-  public isSelected = false;
   protected hoveringPoint: "p1" | "p2" | "p3" | "p4" | null = null;
   protected draggingPoint: "p1" | "p2" | "p3" | "p4" | null = null;
+  public _mousePosition: MousePosition | null = null;
+  public startingDragPosition: MousePosition | null = null;
   public p3: Point;
   public p4: Point;
+  public isSelected = false;
 
   protected constructor(public p1: Point, public p2: Point) {
     this.p3 = { time: p2.time, price: p1.price };
@@ -54,16 +54,16 @@ export abstract class PluginBase implements Series {
     this._series = series;
     this._series.subscribeDataChanged(this._fireDataUpdated);
 
-    this._mouseHandlers.attached(chart, series);
-    this._mouseHandlers.clicked().subscribe((mousePosition) => {
+    this.mouseHandlers.attached(chart, series);
+    this.mouseHandlers.clicked().subscribe((mousePosition) => {
       console.log("clicked");
-      this._mouseEventParams = mousePosition;
+      this._mousePosition = mousePosition;
       this.isSelected = this.isInside(mousePosition);
       requestUpdate();
     }, this);
 
-    this._mouseHandlers.mouseMoved().subscribe((mousePosition) => {
-      this._mouseEventParams = mousePosition;
+    this.mouseHandlers.mouseMoved().subscribe((mousePosition) => {
+      this._mousePosition = mousePosition;
       if (!this.isDragging && mousePosition) {
         this.hoveringPoint = this.closeToPoint(mousePosition);
         this.isHovered = this.isInside(mousePosition) || this.hoveringPoint !== null;
@@ -71,20 +71,20 @@ export abstract class PluginBase implements Series {
       requestUpdate();
     }, this);
 
-    this._mouseHandlers.dragStarted().subscribe((mousePosition) => {
+    this.mouseHandlers.dragStarted().subscribe((mousePosition) => {
       this.isDragging = true;
       this.draggingPoint = this.closeToPoint(mousePosition);
       this.startingDragPosition = mousePosition;
     }, this);
 
-    this._mouseHandlers.dragEnded().subscribe(() => {
+    this.mouseHandlers.dragEnded().subscribe(() => {
       this.isDragging = false;
       this.draggingPoint = null;
       this.startingDragPosition = null;
       this._chart?.applyOptions({ handleScale: true, handleScroll: true });
     }, this);
 
-    this._mouseHandlers.dragging().subscribe((mousePosition) => {
+    this.mouseHandlers.dragging().subscribe((mousePosition) => {
       if (mousePosition && this.isDragging && this.isHovered && !this.hoveringPoint && this.startingDragPosition) {
         this._chart?.applyOptions({ handleScale: false, handleScroll: false });
         const timeScale = this._chart?.timeScale();
@@ -224,12 +224,12 @@ export abstract class PluginBase implements Series {
   public detached() {
     console.log("detached");
     this._series?.unsubscribeDataChanged(this._fireDataUpdated);
-    this._mouseHandlers.mouseMoved().unsubscribeAll(this);
-    this._mouseHandlers.clicked().unsubscribeAll(this);
-    this._mouseHandlers.dragStarted().unsubscribeAll(this);
-    this._mouseHandlers.dragging().unsubscribeAll(this);
-    this._mouseHandlers.dragEnded().unsubscribeAll(this);
-    this._mouseHandlers.detached();
+    this.mouseHandlers.mouseMoved().unsubscribeAll(this);
+    this.mouseHandlers.clicked().unsubscribeAll(this);
+    this.mouseHandlers.dragStarted().unsubscribeAll(this);
+    this.mouseHandlers.dragging().unsubscribeAll(this);
+    this.mouseHandlers.dragEnded().unsubscribeAll(this);
+    this.mouseHandlers.detached();
     this._chart = undefined;
     this._series = undefined;
     this._requestUpdate = undefined;

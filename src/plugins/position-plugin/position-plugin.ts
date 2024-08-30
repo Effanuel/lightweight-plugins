@@ -149,7 +149,7 @@ class RectanglePaneView implements ISeriesPrimitivePaneView {
     } | null = null
   ) {
     const timeScale = this._source.chart.timeScale();
-    const { p1, p2, p3, p4, series, _options } = this._source;
+    const { p1, p2, p3, p4, series, options } = this._source;
 
     this.paneRenderer.update({
       p1: { x: timeScale.timeToCoordinate(p1.time), y: series.priceToCoordinate(p1.price), price: p1.price },
@@ -157,7 +157,7 @@ class RectanglePaneView implements ISeriesPrimitivePaneView {
       p3: { x: timeScale.timeToCoordinate(p3.time), y: series.priceToCoordinate(p3.price), price: p3.price },
       p4: { x: timeScale.timeToCoordinate(p4.time), y: series.priceToCoordinate(p4.price), price: p4.price },
       mouse: params?.mousePosition ?? null,
-      fillColor: _options.fillColor,
+      fillColor: options.fillColor,
       isHovered: params?.isHovered ?? false,
       hoveringPoint: params?.hoveringPoint ?? null,
       isSelected: params?.isSelected ?? false,
@@ -199,12 +199,12 @@ const defaultOptions: RectangleDrawingToolOptions = {
 };
 
 class Rectangle extends PluginBase {
-  _options: RectangleDrawingToolOptions;
+  options: RectangleDrawingToolOptions;
   _paneViews: RectanglePaneView[];
 
   constructor(p1: Point, p2: Point, options: Partial<RectangleDrawingToolOptions> = {}) {
     super(p1, p2);
-    this._options = { ...defaultOptions, ...options };
+    this.options = { ...defaultOptions, ...options };
     this._paneViews = [new RectanglePaneView(this)];
   }
 
@@ -212,7 +212,7 @@ class Rectangle extends PluginBase {
     this._paneViews.forEach((pw) =>
       pw.update({
         isHovered: this.isHovered,
-        mousePosition: this._mouseEventParams,
+        mousePosition: this._mousePosition,
         hoveringPoint: this.hoveringPoint,
         isSelected: this.isSelected,
       })
@@ -224,7 +224,7 @@ class Rectangle extends PluginBase {
   }
 
   applyOptions(options: Partial<RectangleDrawingToolOptions>) {
-    this._options = { ...this._options, ...options };
+    this.options = { ...this.options, ...options };
     this.requestUpdate();
   }
 }
@@ -232,7 +232,7 @@ class Rectangle extends PluginBase {
 class PreviewRectangle extends Rectangle {
   constructor(p1: Point, p2: Point, options: Partial<RectangleDrawingToolOptions> = {}) {
     super(p1, p2, options);
-    this._options.fillColor = this._options.previewFillColor;
+    this.options.fillColor = this.options.previewFillColor;
   }
 
   public updateEndPoint(p: Point) {
@@ -246,16 +246,16 @@ class PreviewRectangle extends Rectangle {
   }
 }
 
-export class RectangleDrawingTool {
+export class PositionPluginTool {
   private _chart: IChartApi | undefined;
   private _series: ISeriesApi<SeriesType> | undefined;
   private _drawingsToolbarContainer: HTMLDivElement | undefined;
   private _defaultOptions: Partial<RectangleDrawingToolOptions>;
-  private _rectangles: Rectangle[];
+  private rectangles: Rectangle[];
   private _previewRectangle: PreviewRectangle | undefined = undefined;
-  private _points: Point[] = [];
-  private _drawing: boolean = false;
-  private _toolbarButton: HTMLDivElement | undefined;
+  private points: Point[] = [];
+  private drawing: boolean = false;
+  private toolbarButton: HTMLDivElement | undefined;
 
   constructor(
     chart: IChartApi,
@@ -269,7 +269,7 @@ export class RectangleDrawingTool {
     console.log("init");
     this._addToolbarButton();
     this._defaultOptions = options;
-    this._rectangles = [];
+    this.rectangles = [];
     this._chart.subscribeClick(this._onClick);
     this._chart.subscribeCrosshairMove(this._moveHandler);
     document.addEventListener("keydown", this.keyDownListener, false);
@@ -282,10 +282,10 @@ export class RectangleDrawingTool {
         this._removePreviewRectangle();
         break;
       case "Backspace":
-        this._rectangles.forEach((rectangle) => {
+        this.rectangles.forEach((rectangle) => {
           if (rectangle.isSelected) {
-            this._removeRectangle(this._rectangles[this._rectangles.length - 1]);
-            this._rectangles.pop();
+            this._removeRectangle(this.rectangles[this.rectangles.length - 1]);
+            this.rectangles.pop();
           }
         });
         this._series?.applyOptions({}); // Triggers update to completely remove the primitive
@@ -302,46 +302,46 @@ export class RectangleDrawingTool {
     this.stopDrawing();
     this._chart?.unsubscribeClick(this._clickHandler);
     this._chart?.unsubscribeCrosshairMove(this._moveHandler);
-    this._rectangles.forEach((rectangle) => {
+    this.rectangles.forEach((rectangle) => {
       this._removeRectangle(rectangle);
     });
 
-    this._rectangles = [];
+    this.rectangles = [];
     this._removePreviewRectangle();
     this._chart = undefined;
     this._series = undefined;
     this._drawingsToolbarContainer = undefined;
-    this._toolbarButton = undefined;
+    this.toolbarButton = undefined;
     document.removeEventListener("keydown", this.keyDownListener, false);
   }
 
   startDrawing = (): void => {
-    this._drawing = true;
+    this.drawing = true;
 
-    this._points = [];
-    if (this._toolbarButton) {
-      this._toolbarButton.style.fill = "rgb(100, 150, 250)";
+    this.points = [];
+    if (this.toolbarButton) {
+      this.toolbarButton.style.fill = "rgb(100, 150, 250)";
     }
   };
 
   stopDrawing(): void {
     console.log("stop drawing");
-    this._drawing = false;
-    this._points = [];
-    if (this._toolbarButton) {
-      this._toolbarButton.style.fill = "rgb(255, 255, 255)";
+    this.drawing = false;
+    this.points = [];
+    if (this.toolbarButton) {
+      this.toolbarButton.style.fill = "rgb(255, 255, 255)";
     }
   }
 
   isDrawing(): boolean {
-    return this._drawing;
+    return this.drawing;
   }
 
   private _onClick = (param: MouseEventParams) => {
     // this._rectangles.forEach((rectangle) => {
     //   console.log(rectangle._p1.price, rectangle._p2.price);
     // });
-    console.log("drawing", !this._drawing, !param.point, !param.time, !this._series);
+    console.log("drawing", !this.drawing, !param.point, !param.time, !this._series);
     if (!this.isDrawing() || !param.point || !param.time || !this._series) return;
     console.log("click 2");
     // console.log("on click");
@@ -353,7 +353,7 @@ export class RectangleDrawingTool {
   };
 
   private _onMouseMove = (param: MouseEventParams) => {
-    if (!this._drawing || !param.point || !param.time || !this._series) return;
+    if (!this.drawing || !param.point || !param.time || !this._series) return;
 
     const price = this._series.coordinateToPrice(param.point.y);
     if (price === null) return;
@@ -363,21 +363,21 @@ export class RectangleDrawingTool {
 
   private _addPoint(p: Point) {
     console.log("add point");
-    this._points.push(p);
-    if (this._points.length >= 2) {
-      this._addNewRectangle(this._points[0], this._points[1]);
+    this.points.push(p);
+    if (this.points.length >= 2) {
+      this._addNewRectangle(this.points[0], this.points[1]);
 
       this.stopDrawing();
       this._removePreviewRectangle();
     }
-    if (this._points.length === 1) {
-      this._addPreviewRectangle(this._points[0]);
+    if (this.points.length === 1) {
+      this._addPreviewRectangle(this.points[0]);
     }
   }
 
   private _addNewRectangle(p1: Point, p2: Point) {
     const rectangle = new Rectangle(p1, p2, { ...this._defaultOptions });
-    this._rectangles.push(rectangle);
+    this.rectangles.push(rectangle);
     console.log("rectangle added");
     // rectangle.hitTest()
     ensureDefined(this._series).attachPrimitive(rectangle);
@@ -411,7 +411,7 @@ export class RectangleDrawingTool {
 
   private _addToolbarButton() {
     console.log("create divs");
-    if (!this._drawingsToolbarContainer || this._toolbarButton) return;
+    if (!this._drawingsToolbarContainer || this.toolbarButton) return;
     const button = document.createElement("div");
     button.style.width = "20px";
     button.style.height = "20px";
@@ -423,6 +423,6 @@ export class RectangleDrawingTool {
       else this.startDrawing();
     });
     this._drawingsToolbarContainer.appendChild(button);
-    this._toolbarButton = button;
+    this.toolbarButton = button;
   }
 }
