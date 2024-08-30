@@ -56,7 +56,6 @@ export abstract class PluginBase implements Series {
 
     this.mouseHandlers.attached(chart, series);
     this.mouseHandlers.clicked().subscribe((mousePosition) => {
-      console.log("clicked");
       this._mousePosition = mousePosition;
       this.isSelected = this.isInside(mousePosition);
       requestUpdate();
@@ -222,7 +221,6 @@ export abstract class PluginBase implements Series {
   //   }
 
   public detached() {
-    console.log("detached");
     this._series?.unsubscribeDataChanged(this._fireDataUpdated);
     this.mouseHandlers.mouseMoved().unsubscribeAll(this);
     this.mouseHandlers.clicked().unsubscribeAll(this);

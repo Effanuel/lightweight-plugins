@@ -249,12 +249,12 @@ class PreviewRectangle extends Rectangle {
 export class PositionPluginTool {
   private _chart: IChartApi | undefined;
   private _series: ISeriesApi<SeriesType> | undefined;
-  private _drawingsToolbarContainer: HTMLDivElement | undefined;
-  private _defaultOptions: Partial<RectangleDrawingToolOptions>;
-  private rectangles: Rectangle[];
-  private _previewRectangle: PreviewRectangle | undefined = undefined;
+  private drawingsToolbarContainer: HTMLDivElement | undefined;
+  private defaultOptions: Partial<RectangleDrawingToolOptions>;
+  private rectangle: Rectangle | null = null;
+  private previewRectangle: PreviewRectangle | null = null;
   private points: Point[] = [];
-  private drawing: boolean = false;
+  private drawing = false;
   private toolbarButton: HTMLDivElement | undefined;
 
   constructor(
@@ -265,11 +265,9 @@ export class PositionPluginTool {
   ) {
     this._chart = chart;
     this._series = series;
-    this._drawingsToolbarContainer = drawingsToolbarContainer;
-    console.log("init");
-    this._addToolbarButton();
-    this._defaultOptions = options;
-    this.rectangles = [];
+    this.drawingsToolbarContainer = drawingsToolbarContainer;
+    this.addToolbarButton();
+    this.defaultOptions = options;
     this._chart.subscribeClick(this._onClick);
     this._chart.subscribeCrosshairMove(this._moveHandler);
     document.addEventListener("keydown", this.keyDownListener, false);
@@ -279,17 +277,12 @@ export class PositionPluginTool {
     switch (event.key) {
       case "Escape":
         this.stopDrawing();
-        this._removePreviewRectangle();
+        this.removePreviewRectangle();
         break;
       case "Backspace":
-        this.rectangles.forEach((rectangle) => {
-          if (rectangle.isSelected) {
-            this._removeRectangle(this.rectangles[this.rectangles.length - 1]);
-            this.rectangles.pop();
-          }
-        });
-        this._series?.applyOptions({}); // Triggers update to completely remove the primitive
-
+        if (this.rectangle?.isSelected) {
+          this.removeRectangle();
+        }
         break;
     }
   };
@@ -298,26 +291,21 @@ export class PositionPluginTool {
   private _moveHandler = (param: MouseEventParams) => this._onMouseMove(param);
 
   remove() {
-    console.log("remove");
     this.stopDrawing();
     this._chart?.unsubscribeClick(this._clickHandler);
     this._chart?.unsubscribeCrosshairMove(this._moveHandler);
-    this.rectangles.forEach((rectangle) => {
-      this._removeRectangle(rectangle);
-    });
-
-    this.rectangles = [];
-    this._removePreviewRectangle();
+    this.removeRectangle();
+    this.removePreviewRectangle();
     this._chart = undefined;
     this._series = undefined;
-    this._drawingsToolbarContainer = undefined;
+    this.drawingsToolbarContainer = undefined;
     this.toolbarButton = undefined;
     document.removeEventListener("keydown", this.keyDownListener, false);
   }
 
   startDrawing = (): void => {
+    this.removeRectangle();
     this.drawing = true;
-
     this.points = [];
     if (this.toolbarButton) {
       this.toolbarButton.style.fill = "rgb(100, 150, 250)";
@@ -325,7 +313,6 @@ export class PositionPluginTool {
   };
 
   stopDrawing(): void {
-    console.log("stop drawing");
     this.drawing = false;
     this.points = [];
     if (this.toolbarButton) {
@@ -333,18 +320,8 @@ export class PositionPluginTool {
     }
   }
 
-  isDrawing(): boolean {
-    return this.drawing;
-  }
-
   private _onClick = (param: MouseEventParams) => {
-    // this._rectangles.forEach((rectangle) => {
-    //   console.log(rectangle._p1.price, rectangle._p2.price);
-    // });
-    console.log("drawing", !this.drawing, !param.point, !param.time, !this._series);
-    if (!this.isDrawing() || !param.point || !param.time || !this._series) return;
-    console.log("click 2");
-    // console.log("on click");
+    if (!this.drawing || !param.point || !param.time || !this._series) return;
     const price = this._series.coordinateToPrice(param.point.y);
     if (price === null) {
       return;
@@ -358,71 +335,62 @@ export class PositionPluginTool {
     const price = this._series.coordinateToPrice(param.point.y);
     if (price === null) return;
 
-    this._previewRectangle?.updateEndPoint({ time: param.time, price });
+    this.previewRectangle?.updateEndPoint({ time: param.time, price });
   };
 
   private _addPoint(p: Point) {
-    console.log("add point");
     this.points.push(p);
     if (this.points.length >= 2) {
-      this._addNewRectangle(this.points[0], this.points[1]);
+      this.addNewRectangle(this.points[0], this.points[1]);
 
       this.stopDrawing();
-      this._removePreviewRectangle();
+      this.removePreviewRectangle();
     }
     if (this.points.length === 1) {
-      this._addPreviewRectangle(this.points[0]);
+      this.addPreviewRectangle(this.points[0]);
     }
   }
 
-  private _addNewRectangle(p1: Point, p2: Point) {
-    const rectangle = new Rectangle(p1, p2, { ...this._defaultOptions });
-    this.rectangles.push(rectangle);
-    console.log("rectangle added");
+  private addNewRectangle(p1: Point, p2: Point) {
+    const rectangle = new Rectangle(p1, p2, { ...this.defaultOptions });
+    this.rectangle = rectangle;
     // rectangle.hitTest()
     ensureDefined(this._series).attachPrimitive(rectangle);
   }
 
-  //   private addPrice() {
-  //     const priceElement = document.createElement("div");
-  //     applyStyle(priceElement, { "font-size": "14px", "line-height": "18px", "font-weight": "590", color: "red" });
-
-  //     this.priceElement = priceElement;
-  //     this._drawingsToolbarContainer?.appendChild(priceElement);
-  //   }
-
-  private _removeRectangle(rectangle: Rectangle) {
-    console.log("remove");
-    ensureDefined(this._series).detachPrimitive(rectangle);
-  }
-
-  private _addPreviewRectangle(p: Point) {
-    this._previewRectangle = new PreviewRectangle(p, p, { ...this._defaultOptions });
-    ensureDefined(this._series).attachPrimitive(this._previewRectangle);
-  }
-
-  private _removePreviewRectangle() {
-    if (this._previewRectangle) {
-      ensureDefined(this._series).detachPrimitive(this._previewRectangle);
-      this._previewRectangle = undefined;
+  private removeRectangle() {
+    if (this.rectangle) {
+      ensureDefined(this._series).detachPrimitive(this.rectangle);
+      this.rectangle = null;
       this._series?.applyOptions({}); // Triggers update to completely remove the primitive
     }
   }
 
-  private _addToolbarButton() {
-    console.log("create divs");
-    if (!this._drawingsToolbarContainer || this.toolbarButton) return;
+  private addPreviewRectangle(p: Point) {
+    this.previewRectangle = new PreviewRectangle(p, p, { ...this.defaultOptions });
+    ensureDefined(this._series).attachPrimitive(this.previewRectangle);
+  }
+
+  private removePreviewRectangle() {
+    if (this.previewRectangle) {
+      ensureDefined(this._series).detachPrimitive(this.previewRectangle);
+      this.previewRectangle = null;
+      this._series?.applyOptions({}); // Triggers update to completely remove the primitive
+    }
+  }
+
+  private addToolbarButton() {
+    if (!this.drawingsToolbarContainer || this.toolbarButton) return;
     const button = document.createElement("div");
     button.style.width = "20px";
     button.style.height = "20px";
     button.style.fill = "rgb(255, 255, 255)";
     button.innerHTML = `<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 28 28" width="28" height="28"><path fill-rule="evenodd" clip-rule="evenodd" d="M4.5 5a1.5 1.5 0 1 0 0 3 1.5 1.5 0 0 0 0-3zM2 6.5A2.5 2.5 0 0 1 6.95 6H24v1H6.95A2.5 2.5 0 0 1 2 6.5zM4.5 15a1.5 1.5 0 1 0 0 3 1.5 1.5 0 0 0 0-3zM2 16.5a2.5 2.5 0 0 1 4.95-.5h13.1a2.5 2.5 0 1 1 0 1H6.95A2.5 2.5 0 0 1 2 16.5zM22.5 15a1.5 1.5 0 1 0 0 3 1.5 1.5 0 0 0 0-3zm-18 6a1.5 1.5 0 1 0 0 3 1.5 1.5 0 0 0 0-3zM2 22.5a2.5 2.5 0 0 1 4.95-.5H24v1H6.95A2.5 2.5 0 0 1 2 22.5z"></path><path fill="currentColor" fill-rule="evenodd" clip-rule="evenodd" d="M22.4 8.94l-1.39.63-.41-.91 1.39-.63.41.91zm-4 1.8l-1.39.63-.41-.91 1.39-.63.41.91zm-4 1.8l-1.4.63-.4-.91 1.39-.63.41.91zm-4 1.8l-1.4.63-.4-.91 1.39-.63.41.91z"></path></svg>`; // `<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 28 28" width="28" height="28" fill="none"><path fill="white" fill-rule="evenodd" clip-rule="evenodd" d="M4.5 5a1.5 1.5 0 1 0 0 3 1.5 1.5 0 0 0 0-3zM2 6.5A2.5 2.5 0 0 1 6.95 6H24v1H6.95A2.5 2.5 0 0 1 2 6.5zM4.5 15a1.5 1.5 0 1 0 0 3 1.5 1.5 0 0 0 0-3zM2 16.5a2.5 2.5 0 0 1 4.95-.5h13.1a2.5 2.5 0 1 1 0 1H6.95A2.5 2.5 0 0 1 2 16.5zM22.5 15a1.5 1.5 0 1 0 0 3 1.5 1.5 0 0 0 0-3zm-18 6a1.5 1.5 0 1 0 0 3 1.5 1.5 0 0 0 0-3zM2 22.5a2.5 2.5 0 0 1 4.95-.5H24v1H6.95A2.5 2.5 0 0 1 2 22.5z"></path><path fill="currentColor" fill-rule="evenodd" clip-rule="evenodd" d="M22.4 8.94l-1.39.63-.41-.91 1.39-.63.41.91zm-4 1.8l-1.39.63-.41-.91 1.39-.63.41.91zm-4 1.8l-1.4.63-.4-.91 1.39-.63.41.91zm-4 1.8l-1.4.63-.4-.91 1.39-.63.41.91z"></path></svg>`; //`<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 512 512"><path d="M315.4 15.5C309.7 5.9 299.2 0 288 0s-21.7 5.9-27.4 15.5l-96 160c-5.9 9.9-6.1 22.2-.4 32.2s16.3 16.2 27.8 16.2H384c11.5 0 22.2-6.2 27.8-16.2s5.5-22.3-.4-32.2l-96-160zM288 312V456c0 22.1 17.9 40 40 40H472c22.1 0 40-17.9 40-40V312c0-22.1-17.9-40-40-40H328c-22.1 0-40 17.9-40 40zM128 512a128 128 0 1 0 0-256 128 128 0 1 0 0 256z"/></svg>`;
     button.addEventListener("click", () => {
-      console.log("ckic");
-      if (this.isDrawing()) this.stopDrawing();
+      if (this.drawing) this.stopDrawing();
       else this.startDrawing();
     });
-    this._drawingsToolbarContainer.appendChild(button);
+    this.drawingsToolbarContainer.appendChild(button);
     this.toolbarButton = button;
   }
 }
