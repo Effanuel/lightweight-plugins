@@ -22,7 +22,6 @@ interface PaneRendererUpdateParams {
   p3: ViewPoint;
   p4: ViewPoint;
   mouse: MousePosition | null;
-  fillColor: string;
   isHovered: boolean;
   isSelected: boolean;
   hoveringPoint: "p1" | "p2" | "p3" | "p4" | null;
@@ -149,7 +148,7 @@ class RectanglePaneView implements ISeriesPrimitivePaneView {
     } | null = null
   ) {
     const timeScale = this._source.chart.timeScale();
-    const { p1, p2, p3, p4, series, options } = this._source;
+    const { p1, p2, p3, p4, series } = this._source;
 
     this.paneRenderer.update({
       p1: { x: timeScale.timeToCoordinate(p1.time), y: series.priceToCoordinate(p1.price), price: p1.price },
@@ -157,7 +156,6 @@ class RectanglePaneView implements ISeriesPrimitivePaneView {
       p3: { x: timeScale.timeToCoordinate(p3.time), y: series.priceToCoordinate(p3.price), price: p3.price },
       p4: { x: timeScale.timeToCoordinate(p4.time), y: series.priceToCoordinate(p4.price), price: p4.price },
       mouse: params?.mousePosition ?? null,
-      fillColor: options.fillColor,
       isHovered: params?.isHovered ?? false,
       hoveringPoint: params?.hoveringPoint ?? null,
       isSelected: params?.isSelected ?? false,
@@ -175,36 +173,15 @@ interface Point {
 }
 
 export interface RectangleDrawingToolOptions {
-  fillColor: string;
-  previewFillColor: string;
-  labelColor: string;
-  labelTextColor: string;
-  showLabels: boolean;
   priceLabelFormatter: (price: number) => string;
   timeLabelFormatter: (time: Time) => string;
 }
 
-const defaultOptions: RectangleDrawingToolOptions = {
-  fillColor: "rgba(200, 50, 100, 0.75)",
-  previewFillColor: "rgba(200, 50, 100, 0.25)",
-  labelColor: "rgba(200, 50, 100, 1)",
-  labelTextColor: "white",
-  showLabels: true,
-  priceLabelFormatter: (price: number) => price.toFixed(2),
-  timeLabelFormatter: (time: Time) => {
-    if (typeof time == "string") return time;
-    const date = isBusinessDay(time) ? new Date(time.year, time.month, time.day) : new Date(time * 1000);
-    return date.toLocaleDateString();
-  },
-};
-
 class Rectangle extends PluginBase {
-  options: RectangleDrawingToolOptions;
   _paneViews: RectanglePaneView[];
 
-  constructor(p1: Point, p2: Point, options: Partial<RectangleDrawingToolOptions> = {}) {
+  constructor(p1: Point, p2: Point) {
     super(p1, p2);
-    this.options = { ...defaultOptions, ...options };
     this._paneViews = [new RectanglePaneView(this)];
   }
 
@@ -224,17 +201,11 @@ class Rectangle extends PluginBase {
   }
 
   applyOptions(options: Partial<RectangleDrawingToolOptions>) {
-    this.options = { ...this.options, ...options };
     this.requestUpdate();
   }
 }
 
 class PreviewRectangle extends Rectangle {
-  constructor(p1: Point, p2: Point, options: Partial<RectangleDrawingToolOptions> = {}) {
-    super(p1, p2, options);
-    this.options.fillColor = this.options.previewFillColor;
-  }
-
   public updateEndPoint(p: Point) {
     const profitMargin = Math.abs(this.p1.price - this.p2.price) * 3;
     this.p2 = p;
@@ -250,7 +221,7 @@ export class PositionPluginTool {
   private _chart: IChartApi | undefined;
   private _series: ISeriesApi<SeriesType> | undefined;
   private drawingsToolbarContainer: HTMLDivElement | undefined;
-  private defaultOptions: Partial<RectangleDrawingToolOptions>;
+  private defaultOptions: Partial<RectangleDrawingToolOptions> = {};
   private rectangle: Rectangle | null = null;
   private previewRectangle: PreviewRectangle | null = null;
   private points: Point[] = [];
@@ -261,7 +232,7 @@ export class PositionPluginTool {
     chart: IChartApi,
     series: ISeriesApi<SeriesType>,
     drawingsToolbarContainer: HTMLDivElement,
-    options: Partial<RectangleDrawingToolOptions>
+    options: Partial<RectangleDrawingToolOptions> = {}
   ) {
     this._chart = chart;
     this._series = series;
@@ -352,7 +323,7 @@ export class PositionPluginTool {
   }
 
   private addNewRectangle(p1: Point, p2: Point) {
-    const rectangle = new Rectangle(p1, p2, { ...this.defaultOptions });
+    const rectangle = new Rectangle(p1, p2);
     this.rectangle = rectangle;
     // rectangle.hitTest()
     ensureDefined(this._series).attachPrimitive(rectangle);
@@ -367,7 +338,7 @@ export class PositionPluginTool {
   }
 
   private addPreviewRectangle(p: Point) {
-    this.previewRectangle = new PreviewRectangle(p, p, { ...this.defaultOptions });
+    this.previewRectangle = new PreviewRectangle(p, p);
     ensureDefined(this._series).attachPrimitive(this.previewRectangle);
   }
 
