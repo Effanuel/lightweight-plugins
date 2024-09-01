@@ -1,4 +1,4 @@
-# Lightweight charts plugins
+# Lightweight charts position plugin
 
 ![plot](./assets/position-plugin.png)
 
