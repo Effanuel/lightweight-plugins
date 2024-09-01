@@ -1,6 +1,11 @@
 import React from "react";
 import type { Candle } from "@/types/candle";
-import { IChartApi, ISeriesApi, createChart as lightWeightCreateChart } from "lightweight-charts";
+import {
+  type CandlestickSeriesPartialOptions,
+  type IChartApi,
+  type ISeriesApi,
+  createChart as lightWeightCreateChart,
+} from "lightweight-charts";
 
 export default function useChart() {
   const chart = React.useRef<IChartApi | null>(null);
@@ -14,18 +19,14 @@ export default function useChart() {
     return (chart.current = lightWeightCreateChart(container, options));
   };
 
-  const createCandlesticks = (data: Candle[]): ISeriesApi<"Candlestick"> => {
+  const createCandlesticks = (data: Candle[], options?: CandlestickSeriesPartialOptions): ISeriesApi<"Candlestick"> => {
     if (!chart.current) {
       return console.warn("Failed to init candlesticks. Chart is undefined") as any;
     }
 
-    const candlestickSeries = chart.current.addCandlestickSeries({
-      priceLineVisible: false,
-      priceFormat: { minMove: 0.01 },
-    });
+    const candlestickSeries = chart.current.addCandlestickSeries(options);
     candlestickSeries.setData(data);
-    series.current = candlestickSeries;
-    return candlestickSeries;
+    return (series.current = candlestickSeries);
   };
 
   return { chart, createChart, createCandlesticks };

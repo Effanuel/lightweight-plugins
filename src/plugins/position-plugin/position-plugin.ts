@@ -1,10 +1,6 @@
-import { CanvasRenderingTarget2D } from "fancy-canvas";
-import {
-  Coordinate,
+import type {
   IChartApi,
-  isBusinessDay,
   ISeriesApi,
-  ISeriesPrimitivePaneRenderer,
   ISeriesPrimitivePaneView,
   MouseEventParams,
   SeriesType,
@@ -12,132 +8,14 @@ import {
 } from "lightweight-charts";
 import { ensureDefined } from "../utils/assertions";
 import { PluginBase } from "./plugin-base";
-import { positionsBox } from "../utils/positions";
-import { drawCircleBody, fillRectWithBorder } from "../utils/draw";
 import type { MousePosition } from "../utils/mouse";
-
-interface PaneRendererUpdateParams {
-  p1: ViewPoint;
-  p2: ViewPoint;
-  p3: ViewPoint;
-  p4: ViewPoint;
-  mouse: MousePosition | null;
-  isHovered: boolean;
-  isSelected: boolean;
-  hoveringPoint: "p1" | "p2" | "p3" | "p4" | null;
-}
-
-class RectanglePaneRenderer implements ISeriesPrimitivePaneRenderer {
-  private params: PaneRendererUpdateParams | null = null;
-
-  update(params: PaneRendererUpdateParams) {
-    this.params = params;
-  }
-
-  draw(target: CanvasRenderingTarget2D) {
-    target.useBitmapCoordinateSpace((scope) => {
-      const { p1, p2, p3, p4, isHovered, isSelected } = this.params ?? {};
-      const isHighlighted = isHovered || isSelected;
-      if (
-        p1?.x == null ||
-        p1?.y == null ||
-        p2?.x == null ||
-        p2?.y == null ||
-        p3?.x == null ||
-        p3.y == null ||
-        p4?.x == null ||
-        p4.y == null
-      )
-        return;
-      const ctx = scope.context;
-
-      const horizontalPositions = positionsBox(p1.x, p2.x, scope.horizontalPixelRatio);
-      const verticalPositions = positionsBox(p1.y, p2.y, scope.verticalPixelRatio);
-      const pp4_y = positionsBox(p2.y, p4.y, scope.verticalPixelRatio);
-
-      const stopLossBgColor = isHighlighted ? "rgba(255, 0, 0, 0.4)" : "rgba(255, 0, 0, 0.2)";
-      const profitBgColor = isHighlighted ? "rgba(0, 255, 0, 0.4)" : "rgba(0, 255, 0, 0.2)";
-
-      const long = p2.price && p1.price && p2.price < p1.price;
-
-      const point1_x = horizontalPositions.position;
-      const point1_y = verticalPositions.position;
-
-      const point2_x = horizontalPositions.position + horizontalPositions.length;
-      const point2_y = verticalPositions.position + verticalPositions.length;
-
-      const point4_x = horizontalPositions.position + horizontalPositions.length;
-
-      ctx.save();
-      fillRectWithBorder(
-        ctx,
-        { x: point1_x, y: point1_y },
-        { x: point2_x, y: point2_y },
-        stopLossBgColor,
-        scope.bitmapSize.width
-      );
-
-      fillRectWithBorder(
-        ctx,
-        { x: p1.x < p2.x ? point1_x : point2_x, y: long ? point1_y : point2_y },
-        { x: p1.x < p2.x ? point4_x : point1_x, y: long ? pp4_y.position : pp4_y.position + pp4_y.length },
-        profitBgColor,
-        scope.bitmapSize.width
-      );
-
-      if (isHighlighted) {
-        ctx.fillStyle = "white";
-        ctx.font = "24px Arial";
-        ctx.textAlign = "center";
-        const riskToReward = Math.abs(p1.price - p4.price) / Math.abs(p1.price - p2.price);
-        const middlePosition = horizontalPositions.position + horizontalPositions.length / 2;
-
-        ctx.fillText(
-          `RR: ${riskToReward.toFixed(2)}`,
-          middlePosition,
-          verticalPositions.position + 30 + (long ? 0 : verticalPositions.length)
-        );
-
-        ctx.fillText(
-          `Target: ${p4.price.toLocaleString("en-US", { maximumFractionDigits: 2 })}`,
-          middlePosition,
-          long ? pp4_y.position - 25 : pp4_y.position + pp4_y.length + 47
-        );
-
-        ctx.fillText(
-          `Stop: ${p2.price.toLocaleString("en-US", { maximumFractionDigits: 2 })}`,
-          middlePosition,
-          long ? point2_y + 25 : point1_y - 13
-        );
-
-        ctx.fillStyle = "black";
-        drawCircleBody(ctx, { x: p1.x < p2.x ? point1_x : point2_x, y: long ? point1_y : point2_y }, 15, 4);
-        drawCircleBody(ctx, { x: p1.x < p2.x ? point2_x : point1_x, y: long ? point2_y : point1_y }, 15, 4);
-        drawCircleBody(ctx, { x: p1.x < p2.x ? point2_x : point1_x, y: long ? point1_y : point2_y }, 15, 4);
-        drawCircleBody(
-          ctx,
-          {
-            x: p1.x < p2.x ? horizontalPositions.position + horizontalPositions.length : horizontalPositions.position,
-            y: long ? pp4_y.position : pp4_y.position + pp4_y.length,
-          },
-          15,
-          4
-        );
-      }
-
-      ctx.restore();
-    });
-  }
-}
-
-interface ViewPoint {
-  x: Coordinate | null;
-  y: Coordinate | null;
-  price: number;
-}
+import RectanglePaneRenderer from "./pane-renderer";
+import { round } from "@/utils";
 
 class RectanglePaneView implements ISeriesPrimitivePaneView {
-  constructor(private _source: Rectangle, private paneRenderer = new RectanglePaneRenderer()) {}
+  private paneRenderer = new RectanglePaneRenderer();
+
+  constructor(private _source: Rectangle) {}
 
   update(
     params: {
@@ -147,8 +25,8 @@ class RectanglePaneView implements ISeriesPrimitivePaneView {
       isSelected: boolean;
     } | null = null
   ) {
-    const timeScale = this._source.chart.timeScale();
     const { p1, p2, p3, p4, series } = this._source;
+    const timeScale = this._source.chart.timeScale();
 
     this.paneRenderer.update({
       p1: { x: timeScale.timeToCoordinate(p1.time), y: series.priceToCoordinate(p1.price), price: p1.price },
@@ -170,11 +48,6 @@ class RectanglePaneView implements ISeriesPrimitivePaneView {
 interface Point {
   time: Time;
   price: number;
-}
-
-export interface RectangleDrawingToolOptions {
-  priceLabelFormatter: (price: number) => string;
-  timeLabelFormatter: (time: Time) => string;
 }
 
 class Rectangle extends PluginBase {
@@ -199,10 +72,6 @@ class Rectangle extends PluginBase {
   paneViews() {
     return this._paneViews;
   }
-
-  applyOptions(options: Partial<RectangleDrawingToolOptions>) {
-    this.requestUpdate();
-  }
 }
 
 class PreviewRectangle extends Rectangle {
@@ -217,11 +86,14 @@ class PreviewRectangle extends Rectangle {
   }
 }
 
+interface Options {
+  onSubmit?: (entry: number, stop: number, target: number) => void;
+}
+
 export class PositionPluginTool {
   private _chart: IChartApi | undefined;
   private _series: ISeriesApi<SeriesType> | undefined;
   private drawingsToolbarContainer: HTMLDivElement | undefined;
-  private defaultOptions: Partial<RectangleDrawingToolOptions> = {};
   private rectangle: Rectangle | null = null;
   private previewRectangle: PreviewRectangle | null = null;
   private points: Point[] = [];
@@ -232,13 +104,12 @@ export class PositionPluginTool {
     chart: IChartApi,
     series: ISeriesApi<SeriesType>,
     drawingsToolbarContainer: HTMLDivElement,
-    options: Partial<RectangleDrawingToolOptions> = {}
+    private options?: Options
   ) {
     this._chart = chart;
     this._series = series;
     this.drawingsToolbarContainer = drawingsToolbarContainer;
     this.addToolbarButton();
-    this.defaultOptions = options;
     this._chart.subscribeClick(this._onClick);
     this._chart.subscribeCrosshairMove(this._moveHandler);
     document.addEventListener("keydown", this.keyDownListener, false);
@@ -253,6 +124,15 @@ export class PositionPluginTool {
       case "Backspace":
         if (this.rectangle?.isSelected) {
           this.removeRectangle();
+        }
+        break;
+      case "Enter":
+        if (this.rectangle?.isSelected) {
+          const minMove = this._series?.options().priceFormat.minMove ?? 0.00001; // Bugs will occur with minMove = 0
+          const entry = round(this.rectangle.p1.price, minMove);
+          const stop = round(this.rectangle.p2.price, minMove);
+          const target = round(this.rectangle.p4.price, minMove);
+          this.options?.onSubmit?.(entry, stop, target);
         }
         break;
     }

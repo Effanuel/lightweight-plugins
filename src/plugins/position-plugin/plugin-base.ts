@@ -1,4 +1,4 @@
-import {
+import type {
   DataChangedScope,
   IChartApi,
   ISeriesApi,
@@ -14,15 +14,14 @@ import { arePointsClose } from "../utils/draw";
 
 // TODO: remove more dead code
 // TODO: add submit and cancel buttons
+// TODO: add config
 
 interface Point {
   time: Time;
   price: number;
 }
 
-type Series = ISeriesPrimitive<Time> & { p1: Point; p2: Point };
-
-export abstract class PluginBase implements Series {
+export abstract class PluginBase implements ISeriesPrimitive<Time> {
   private _chart: IChartApi | undefined = undefined;
   private _series: ISeriesApi<keyof SeriesOptionsMap> | undefined = undefined;
   private mouseHandlers = new MouseHandlers();

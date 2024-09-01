@@ -7,7 +7,7 @@ export function arePointsClose(point1: { x: number; y: number }, point2: { x: nu
   return distanceSquared <= threshold * threshold;
 }
 
-export function fillRectWithBorder(
+export function drawRectangleWithBorder(
   ctx: CanvasRenderingContext2D,
   point0: Point,
   point1: Point,
@@ -70,12 +70,12 @@ export function fillRectWithBorder(
 
     ctx.moveTo(x1 - bottomRight.x, point0.y - bottomRight.y);
     ctx.lineTo(x2 + bottomLeft.x, point0.y - bottomLeft.y);
-    ctx.moveTo(point1.x + topRight.x, point0.y + topRight.y);
-    ctx.lineTo(point1.x + topRight.x, point1.y - topRight.y);
+    // ctx.moveTo(point1.x + topRight.x, point0.y + topRight.y);
+    // ctx.lineTo(point1.x + topRight.x, point1.y - topRight.y);
     ctx.moveTo(x1 - bottomRight.x, point1.y + bottomRight.y);
     ctx.lineTo(x2 + bottomLeft.x, point1.y + bottomLeft.y);
-    ctx.moveTo(point0.x - topLeft.x, point0.y + topLeft.y);
-    ctx.lineTo(point0.x - topLeft.x, point1.y - topLeft.y);
+    // ctx.moveTo(point0.x - topLeft.x, point0.y + topLeft.y);
+    // ctx.lineTo(point0.x - topLeft.x, point1.y - topLeft.y);
     ctx.stroke();
   }
 }

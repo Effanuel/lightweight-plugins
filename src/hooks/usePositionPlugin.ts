@@ -9,7 +9,11 @@ export default function usePositionPlugin() {
 
   const create = (chart: IChartApi, series: ISeriesApi<SeriesType>) => {
     const toolbarElement = document.querySelector<HTMLDivElement>(`#${ToolbarId}`)!;
-    tool.current = new PositionPluginTool(chart, series, toolbarElement);
+    tool.current = new PositionPluginTool(chart, series, toolbarElement, {
+      onSubmit: (entry, stop, target) => {
+        alert(`Entry: ${entry}\nStop: ${stop}\nTarget: ${target}`);
+      },
+    });
   };
 
   const remove = () => {

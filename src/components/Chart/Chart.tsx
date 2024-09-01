@@ -11,32 +11,24 @@ interface Props {
 }
 
 export default function Chart(props: Props) {
-  const { chart, createChart, createCandlesticks } = useChart();
-  const { create, remove } = usePositionPlugin();
+  const { createChart, createCandlesticks } = useChart();
+  const positionPlugin = usePositionPlugin();
   const chartDiv = React.useRef(null);
 
   useEffect(() => {
     if (!chartDiv.current) {
-      throw new Error("Chart div doesnt exist");
+      throw new Error("Chart div element doesnt exist");
     }
 
     const chart = createChart(chartDiv.current, ChartOptions);
-    const series = createCandlesticks(props.candles);
-    centerVisibleRange(props.candles);
-    create(chart, series);
+    const series = createCandlesticks(props.candles, { priceLineVisible: false, priceFormat: { minMove: 0.01 } });
+    positionPlugin.create(chart, series);
 
     return () => {
       chart.remove();
-      remove();
+      positionPlugin.remove();
     };
   }, []);
-
-  const centerVisibleRange = (data: Candle[]) => {
-    const middlePoint = Math.floor(data.length / 2);
-    const from = data[Math.max(0, middlePoint - 100)]?.time;
-    const to = data[Math.min(data.length - 1, middlePoint + 100)]?.time;
-    from && to && chart?.current?.timeScale()?.setVisibleRange({ from, to });
-  };
 
   return (
     <div className="flex flex-col h-full w-full bg-tw-blue">

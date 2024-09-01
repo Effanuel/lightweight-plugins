@@ -1,4 +1,4 @@
-import { IChartApi, ISeriesApi, SeriesType } from "lightweight-charts";
+import type { IChartApi, ISeriesApi, SeriesType } from "lightweight-charts";
 import { Delegate, ISubscription } from "./delegate";
 
 export interface MousePosition {
@@ -7,12 +7,6 @@ export interface MousePosition {
 }
 
 type UnSubscriber = () => void;
-
-/**
- * We are using our own mouse listeners on the container because
- * we need to know the mouse position when over the price scale
- * (in addition to the chart pane)
- */
 
 export class MouseHandlers {
   _chart: IChartApi | undefined = undefined;
