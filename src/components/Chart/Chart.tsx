@@ -5,6 +5,10 @@ import useChart from "@/hooks/useChart";
 import { Candle } from "@/types/candle";
 import { ChartOptions } from "./chart-options";
 import usePositionPlugin, { ToolbarId } from "@/hooks/usePositionPlugin";
+import { PriceLinesManager } from "@/plugins/price-line";
+import { LineStyle } from "lightweight-charts";
+
+const priceLinesManager = new PriceLinesManager();
 
 interface Props {
   candles: Candle[];
@@ -24,9 +28,20 @@ export default function Chart(props: Props) {
     const series = createCandlesticks(props.candles, { priceLineVisible: false, priceFormat: { minMove: 0.01 } });
     positionPlugin.create(chart, series);
 
+    priceLinesManager.init(chart, series);
+    priceLinesManager.addPriceLine("line1", {
+      price: 31000,
+      color: "red",
+      lineWidth: 1,
+      lineStyle: LineStyle.Solid,
+      axisLabelVisible: true,
+      title: "Line 1",
+    });
+
     return () => {
       chart.remove();
       positionPlugin.remove();
+      priceLinesManager.reset();
     };
   }, []);
 
