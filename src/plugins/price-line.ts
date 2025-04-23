@@ -22,7 +22,6 @@ export class PriceLinesManager {
     this.chart = chart;
 
     const handleMouseMove = (event: MouseEvent) => {
-      console.log("mousemove");
       if (!this.draggingLineId) return;
       this.hasLineMoved = true;
 
