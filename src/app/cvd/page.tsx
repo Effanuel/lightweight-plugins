@@ -8,6 +8,7 @@ import { Time } from "lightweight-charts";
 import useWs from "@/hooks/useWs";
 import { roundTime } from "@/utils";
 import CvdLineChart from "@/components/CvdLineChart/CvdLineChart";
+import CvdCandleChart from "@/components/CvdCandleChart/CvdCandleChart";
 
 interface BinanceTradeMessage {
   e: string; // Event type (e.g., "trade")
@@ -23,10 +24,12 @@ interface BinanceTradeMessage {
   M: boolean; // Ignore
 }
 
+const GroupTimeSeconds = 15;
+
 export default function CvdPage() {
   const [cvd, setCvd] = useState<number>(0);
   const [price, setPrice] = useState<string>("0");
-  const { updateLine1, updateLine2, updateCvd } = useCvdChartContext();
+  const { updateLine1, updateLine2, updateCvd, updateCvdCandle } = useCvdChartContext();
 
   const handleMessage = useCallback((event: MessageEvent) => {
     try {
@@ -44,7 +47,7 @@ export default function CvdPage() {
           updateLine1((data) => {
             const volume = tradeVolume * tradePrice;
             const currentData = [...data];
-            const roundedTime = roundTime(message.T, 5) as Time;
+            const roundedTime = roundTime(message.T, GroupTimeSeconds) as Time;
             const prevCvd = currentData.length > 0 ? currentData[currentData.length - 1].value : 0;
             if (roundedTime === (currentData[currentData.length - 1]?.time as Time)) {
               currentData[currentData.length - 1].value = prevCvd + volume;
@@ -56,7 +59,7 @@ export default function CvdPage() {
           updateLine2((data) => {
             const volume = tradeVolume * tradePrice;
             const currentData = [...data];
-            const roundedTime = roundTime(message.T, 5) as Time;
+            const roundedTime = roundTime(message.T, GroupTimeSeconds) as Time;
             const prevCvd = currentData.length > 0 ? currentData[currentData.length - 1].value : 0;
             if (roundedTime === (currentData[currentData.length - 1]?.time as Time)) {
               currentData[currentData.length - 1].value = prevCvd + volume;
@@ -69,13 +72,42 @@ export default function CvdPage() {
         const volumeDelta = message.m ? -tradeVolume * tradePrice : tradeVolume * tradePrice;
         updateCvd((data) => {
           const currentData = [...data];
-          const roundedTime = roundTime(message.T, 5) as Time;
+          const roundedTime = roundTime(message.T, GroupTimeSeconds) as Time;
           const prevCvd = currentData.length > 0 ? currentData[currentData.length - 1].value : 0;
           if (roundedTime === (currentData[currentData.length - 1]?.time as Time)) {
             currentData[currentData.length - 1].value = prevCvd + volumeDelta;
             return currentData;
           }
           return [...currentData, { time: roundedTime, value: prevCvd + volumeDelta }];
+        });
+
+        updateCvdCandle((data) => {
+          const currentData = [...data];
+          const roundedTime = roundTime(message.T, GroupTimeSeconds) as Time;
+          const prevCvd = currentData.length > 0 ? currentData[currentData.length - 1].close : 0;
+          if (roundedTime === (currentData[currentData.length - 1]?.time as Time)) {
+            currentData[currentData.length - 1].close = prevCvd + volumeDelta;
+            currentData[currentData.length - 1].high = Math.max(
+              prevCvd + volumeDelta,
+              currentData[currentData.length - 1].high
+            );
+            currentData[currentData.length - 1].low = Math.min(
+              prevCvd + volumeDelta,
+              currentData[currentData.length - 1].low
+            );
+
+            return currentData;
+          }
+          return [
+            ...currentData,
+            {
+              time: roundedTime,
+              open: prevCvd,
+              close: prevCvd + volumeDelta,
+              high: prevCvd + volumeDelta,
+              low: prevCvd + volumeDelta,
+            },
+          ];
         });
 
         setCvd((prevCvd) => prevCvd + volumeDelta);
@@ -120,6 +152,7 @@ export default function CvdPage() {
       )}
       <TradeLineChart />
       <CvdLineChart />
+      <CvdCandleChart />
     </div>
   );
 }
