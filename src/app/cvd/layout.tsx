@@ -1,5 +1,5 @@
-import { ChartProvider } from "@/hooks/useChart";
+import { CvdChartProvider } from "@/hooks/useCvdCharts";
 
 export default function Layout({ children }: { children: React.ReactNode }) {
-  return <ChartProvider>{children}</ChartProvider>;
+  return <CvdChartProvider>{children}</CvdChartProvider>;
 }
