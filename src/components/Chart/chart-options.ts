@@ -38,11 +38,11 @@ export const ChartOptions: DeepPartial<ChartOptionsI> = {
   rightPriceScale: {
     borderColor: hex2rgba(twDarkGray, 0.3),
     borderVisible: true,
-    mode: PriceScaleMode.Logarithmic,
+    mode: PriceScaleMode.Normal,
     ticksVisible: true,
   },
   timeScale: {
-    shiftVisibleRangeOnNewBar: false,
+    shiftVisibleRangeOnNewBar: true,
     rightOffset: 12,
     fixLeftEdge: false,
     lockVisibleTimeRangeOnResize: true,

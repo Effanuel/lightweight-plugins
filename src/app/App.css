@@ -1,0 +1,82 @@
+/* src/App.css */
+.App {
+  font-family: sans-serif;
+  padding: 20px;
+  max-width: 600px;
+  margin: 40px auto;
+  border: 1px solid #ccc;
+  border-radius: 8px;
+  background-color: #f9f9f9;
+}
+
+h1,
+h2 {
+  text-align: center;
+  color: #333;
+}
+
+.controls {
+  margin-bottom: 20px;
+  text-align: center;
+}
+
+.controls label {
+  margin-right: 5px;
+}
+
+.controls input {
+  padding: 8px;
+  margin-right: 5px;
+  border: 1px solid #ccc;
+  border-radius: 4px;
+}
+
+.controls span {
+  font-size: 0.9em;
+  color: #666;
+}
+
+.status {
+  margin-bottom: 20px;
+  padding: 10px;
+  background-color: #eee;
+  border-radius: 4px;
+}
+
+.status p {
+  margin: 5px 0;
+}
+
+.connected {
+  color: green;
+  font-weight: bold;
+}
+
+.disconnected {
+  color: red;
+  font-weight: bold;
+}
+
+.error {
+  color: red;
+  font-weight: bold;
+}
+
+.data {
+  margin-top: 20px;
+  padding: 15px;
+  border: 1px solid #ddd;
+  background-color: #fff;
+  border-radius: 4px;
+}
+
+.data h2 {
+  margin-top: 0;
+}
+
+.cvd-value {
+  font-size: 1.5em;
+  font-weight: bold;
+  text-align: center;
+  margin-top: 15px;
+}
