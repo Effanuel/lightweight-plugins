@@ -12,14 +12,12 @@ export default function useMexcData({ symbol = "BTC_USDT", interval = "Min5", li
   const [candles, setCandles] = useState<CandlestickData<Time>[]>([]);
   const [isLoading, setIsLoading] = useState<boolean>(true);
   const [error, setError] = useState<Error | null>(null);
-  const [lastUpdated, setLastUpdated] = useState<Date | null>(null);
 
   const fetchData = async () => {
     try {
       setIsLoading(true);
       const data = await fetchCandlesFromMexc(symbol, interval, limit);
       setCandles(data);
-      setLastUpdated(new Date());
       setError(null);
     } catch (err) {
       setError(err instanceof Error ? err : new Error("An unknown error occurred"));
@@ -38,7 +36,6 @@ export default function useMexcData({ symbol = "BTC_USDT", interval = "Min5", li
     candles,
     isLoading,
     error,
-    lastUpdated,
     refetch: fetchData,
   };
 }

@@ -30,7 +30,7 @@ export default function Home() {
   // Use our custom hook for symbols management
   const { symbols: availableSymbols, isLoading: isLoadingSymbols } = useSymbols();
 
-  const { candles, isLoading, error, lastUpdated, refetch } = useMexcData({ symbol, interval });
+  const { candles, isLoading, error, refetch } = useMexcData({ symbol, interval });
 
   const currentPrice =
     candles.length > 0 ? (candles[candles.length - 1] as CandlestickData<Time>).close.toFixed(2) : "Loading...";
@@ -101,10 +101,6 @@ export default function Home() {
           <Chart candles={candles} symbol={symbol} timeframe={timeframe} />
         )}
       </div>
-
-      {lastUpdated && (
-        <div className="mt-2 text-right text-xs text-gray-400">Last updated: {lastUpdated.toLocaleTimeString()}</div>
-      )}
     </main>
   );
 }
