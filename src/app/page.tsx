@@ -45,7 +45,6 @@ export default function Home() {
     <main className="flex h-screen flex-col overflow-hidden bg-tw-blue p-4">
       <div className="mb-4 flex flex-wrap items-center justify-between gap-4">
         <div className="flex items-center gap-2">
-          <span className="text-sm text-gray-300">Symbol:</span>
           <select
             value={symbol}
             onChange={(e) => setSymbol(e.target.value)}
@@ -63,7 +62,6 @@ export default function Home() {
             )}
           </select>
 
-          <span className="text-sm text-gray-300 ml-4">Interval:</span>
           <select
             value={interval}
             onChange={(e) => setInterval(e.target.value)}
