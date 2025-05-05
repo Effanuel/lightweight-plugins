@@ -38,7 +38,6 @@ export class PriceLinesManager {
     };
 
     const handleMouseDown = (event: MouseEvent) => {
-      console.log("mousedown");
       const closestPriceLine = this.getClosestPriceLineToMouse(event.clientY);
 
       if (closestPriceLine) {
@@ -48,7 +47,6 @@ export class PriceLinesManager {
     };
 
     const handleMouseUp = () => {
-      console.log("mouseup");
       this.draggingLineId = null;
       chart.applyOptions({ handleScroll: true, handleScale: true });
     };
