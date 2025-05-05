@@ -26,10 +26,10 @@ export default function Chart(props: Props) {
   const [lastUpdateTime, setLastUpdateTime] = useState<Date | null>(null);
   const [priceDirection, setPriceDirection] = useState<"up" | "down" | null>(null);
 
-  const { lastTrade, isConnected } = useWebSocket(props.symbol || "BTC_USDT");
+  const { lastTrade, isConnected, subscribeStatus } = useWebSocket(props.symbol || "BTC_USDT");
 
   useEffect(() => {
-    if (lastTrade && lastTrade.symbol === props.symbol) {
+    if (lastTrade && lastTrade.symbol === props.symbol && subscribeStatus === "subscribed") {
       if (realtimePrice !== null) {
         setPriceDirection(lastTrade.price > realtimePrice ? "up" : "down");
       }
@@ -64,7 +64,7 @@ export default function Chart(props: Props) {
         }
       }
     }
-  }, [lastTrade, props.symbol]);
+  }, [lastTrade, props.symbol, subscribeStatus]);
 
   const watermark = {
     visible: true,
@@ -144,25 +144,32 @@ export default function Chart(props: Props) {
 
   return (
     <div className="flex flex-col h-full w-full bg-tw-blue">
-      <div title="Position tool" id={ToolbarId} className="bg-[#141722] h-7 flex justify-center">
-        {isConnected ? (
-          <div className="flex items-center">
-            <span className="h-2 w-2 rounded-full bg-green-500 mr-2 animate-pulse"></span>
-            <span className="text-xs text-gray-300">Live</span>
-            {realtimePrice && (
-              <span
-                className={`ml-2 text-xs font-medium ${
-                  priceDirection === "up" ? "text-green-400" : priceDirection === "down" ? "text-red-400" : "text-white"
-                }`}
-              >
-                ${realtimePrice.toFixed(2)}
-                {lastUpdateTime && <span className="ml-2 text-gray-400 text-xs">({formatTime(lastUpdateTime)})</span>}
-              </span>
-            )}
-          </div>
-        ) : (
-          "Not connected"
-        )}
+      <div title="Position tool" id={ToolbarId} className="bg-[#141722] h-7 flex justify-center gap-x-4">
+        <div className="flex items-center">
+          {isConnected ? (
+            <>
+              <span className="h-2 w-2 rounded-full bg-green-500 mr-2 animate-pulse"></span>
+              <span className="text-xs text-gray-300">Live</span>
+              {realtimePrice && (
+                <span
+                  className={`ml-2 text-xs font-medium ${
+                    priceDirection === "up"
+                      ? "text-green-400"
+                      : priceDirection === "down"
+                      ? "text-red-400"
+                      : "text-white"
+                  }`}
+                >
+                  ${realtimePrice.toFixed(2)}
+                  {lastUpdateTime && <span className="ml-2 text-gray-400 text-xs">({formatTime(lastUpdateTime)})</span>}
+                </span>
+              )}
+            </>
+          ) : (
+            "Not connected"
+          )}
+          {subscribeStatus === "subscribing" && <span className="text-xs text-gray-300">Subscribing...</span>}
+        </div>
       </div>
       <div className="flex flex-1 flex-col border border-gray-500">
         <div id="chart" ref={chartDiv} className="relative z-0 flex w-full flex-1" />

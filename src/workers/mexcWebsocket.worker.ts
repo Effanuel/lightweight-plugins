@@ -3,6 +3,7 @@ let ws: WebSocket | null = null;
 let currentSymbol: string | null = null;
 let reconnectTimeout: NodeJS.Timeout | null = null;
 let heartbeatInterval: NodeJS.Timeout | null = null;
+let subscribingSymbol: string | null = null;
 
 interface MexcTradeMessage {
   M: number;
@@ -11,6 +12,20 @@ interface MexcTradeMessage {
   p: number; // price
   t: number;
   v: number;
+}
+
+function changeSymbol(symbol: string) {
+  if (ws && ws.readyState === WebSocket.OPEN) {
+    if (currentSymbol) {
+      ws.send(JSON.stringify({ method: "unsub.deal", param: { symbol: currentSymbol } }));
+      currentSymbol = null;
+    }
+
+    // Send subscribing status before actual subscription
+    self.postMessage({ type: "subscribing", symbol });
+    subscribingSymbol = symbol;
+    ws.send(JSON.stringify({ method: "sub.deal", param: { symbol: symbol } }));
+  }
 }
 
 function connectWebSocket(symbol: string) {
@@ -28,6 +43,8 @@ function connectWebSocket(symbol: string) {
       console.log("WebSocket connected");
 
       if (ws && ws.readyState === WebSocket.OPEN) {
+        // Send subscribing status before actual subscription
+        self.postMessage({ type: "subscribing", symbol });
         ws.send(JSON.stringify({ method: "sub.deal", param: { symbol: symbol } }));
         setupHeartbeat();
       }
@@ -38,14 +55,19 @@ function connectWebSocket(symbol: string) {
         const data = JSON.parse(event.data) as { channel: string; symbol: string; data: MexcTradeMessage };
 
         switch (data.channel) {
-          case "push.deal":
+          case "push.deal": {
             self.postMessage({
               type: "trade",
               data: { symbol: data.symbol, price: data.data.p, timestamp: data.data.t / 1000 },
             });
             break;
+          }
           case "rs.sub.deal":
-            self.postMessage({ type: "connected" });
+            // Send subscribed event when subscription is confirmed
+            self.postMessage({ type: "subscribed", symbol: data.symbol });
+            currentSymbol = subscribingSymbol;
+            // Keep the connected event for backward compatibility
+            self.postMessage({ type: "connected", symbol: data.symbol });
             break;
         }
       } catch (err) {
@@ -60,6 +82,7 @@ function connectWebSocket(symbol: string) {
 
     ws.onclose = (event) => {
       console.log("WebSocket closed:", event.code, event.reason);
+      self.postMessage({ type: "disconnected", symbol: currentSymbol });
       reconnect();
     };
   } catch (err) {
@@ -79,7 +102,7 @@ function setupHeartbeat() {
       const pingMsg = { method: "ping", param: {} };
       ws.send(JSON.stringify(pingMsg));
     }
-  }, 30000); // Send ping every 30 seconds
+  }, 20_000); // Send ping every 20 seconds
 }
 
 // Reconnect logic with exponential backoff
@@ -98,7 +121,6 @@ function reconnect() {
   }, backoffTime);
 }
 
-// Clear all timeouts and intervals
 function clearTimeouts() {
   if (reconnectTimeout) {
     clearTimeout(reconnectTimeout);
@@ -111,19 +133,23 @@ function clearTimeouts() {
   }
 }
 
-// Listen for messages from the main thread
 self.addEventListener("message", (event) => {
   const { type, symbol } = event.data;
 
-  if (type === "connect" && symbol) {
-    connectWebSocket(symbol);
-  } else if (type === "disconnect") {
-    if (ws) {
-      ws.close();
-      clearTimeouts();
-    }
-  } else if (type === "changeSymbol" && symbol) {
-    connectWebSocket(symbol);
+  switch (type) {
+    case "connect":
+      if (symbol) connectWebSocket(symbol);
+      break;
+    case "changeSymbol":
+      if (symbol) changeSymbol(symbol);
+      break;
+    case "disconnect":
+      if (ws) {
+        self.postMessage({ type: "disconnected", symbol: currentSymbol });
+        ws.close();
+        clearTimeouts();
+      }
+      break;
   }
 });
 
