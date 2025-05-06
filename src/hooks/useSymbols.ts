@@ -1,43 +1,34 @@
-import { useState, useEffect } from "react";
-import { fetchSymbolsFromMexc, SymbolInfo } from "@/services/mexcApi";
+import useSWR from "swr";
+import { SymbolInfo } from "@/services/mexcApi";
+
+const symbolsFetcher = async (): Promise<SymbolInfo[]> => {
+  const response = await fetch("/api/mexc/symbols");
+
+  if (!response.ok) {
+    throw new Error(`API Error: ${response.status} ${response.statusText}`);
+  }
+
+  const data = await response.json();
+
+  if (!Array.isArray(data)) {
+    throw new Error("Invalid API response format");
+  }
+
+  return data;
+};
 
 export default function useSymbols() {
-  const [symbols, setSymbols] = useState<SymbolInfo[]>([]);
-  const [isLoading, setIsLoading] = useState<boolean>(true);
-  const [error, setError] = useState<Error | null>(null);
-  const [lastUpdated, setLastUpdated] = useState<Date | null>(null);
-
-  const fetchSymbols = async () => {
-    try {
-      setIsLoading(true);
-      setError(null);
-
-      const fetchedSymbols = await fetchSymbolsFromMexc();
-      setSymbols(fetchedSymbols);
-      setLastUpdated(new Date());
-    } catch (err) {
-      console.error("Failed to fetch symbols:", err);
-      setError(err instanceof Error ? err : new Error("An unknown error occurred"));
-
-      // Fallback to major symbols if API fails
-      if (symbols.length === 0) {
-        setSymbols([{ symbol: "BTC_USDT" }, { symbol: "ETH_USDT" }, { symbol: "SOL_USDT" }]);
-      }
-    } finally {
-      setIsLoading(false);
-    }
-  };
-
-  // Fetch symbols on mount
-  useEffect(() => {
-    fetchSymbols();
-  }, []);
-
-  return {
-    symbols,
-    isLoading,
+  const {
+    data: symbols = [],
     error,
-    lastUpdated,
-    refetch: fetchSymbols,
-  };
+    isLoading,
+  } = useSWR<SymbolInfo[]>("/api/mexc/symbols", symbolsFetcher, {
+    revalidateOnFocus: false,
+    fallbackData: [{ symbol: "BTC_USDT" }, { symbol: "ETH_USDT" }, { symbol: "SOL_USDT" }],
+    onError: (err) => {
+      console.error("Failed to fetch symbols:", err);
+    },
+  });
+
+  return { symbols, isLoading, error };
 }

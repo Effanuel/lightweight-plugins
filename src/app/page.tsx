@@ -2,10 +2,12 @@
 
 import dynamic from "next/dynamic";
 import { useState, useEffect } from "react";
-import useMexcData from "@/hooks/useMexcData";
+import useMexcData, { IntervalValue } from "@/hooks/useMexcData";
 import useSymbols from "@/hooks/useSymbols";
 import LoadingIndicator from "@/components/LoadingIndicator/LoadingIndicator";
 import { CandlestickData, Time } from "lightweight-charts";
+import { CustomSelect, SelectOption } from "@/components/ui/custom-select";
+import { Button } from "@/components/ui/button";
 
 // Use dynamic import for the Chart component to avoid SSR issues
 const Chart = dynamic(() => import("@/components/Chart/Chart"), {
@@ -13,7 +15,7 @@ const Chart = dynamic(() => import("@/components/Chart/Chart"), {
   ssr: false, // Disable SSR for the chart to prevent hydration issues
 });
 
-const intervals = [
+const intervals: SelectOption<IntervalValue>[] = [
   { label: "1m", value: "Min1" },
   { label: "5m", value: "Min5" },
   { label: "15m", value: "Min15" },
@@ -25,11 +27,9 @@ const intervals = [
 
 export default function Home() {
   const [symbol, setSymbol] = useState<string>("BTC_USDT");
-  const [interval, setInterval] = useState<string>("Min5");
+  const [interval, setInterval] = useState<IntervalValue>("Min5");
 
-  // Use our custom hook for symbols management
-  const { symbols: availableSymbols, isLoading: isLoadingSymbols } = useSymbols();
-
+  const { symbols, isLoading: isLoadingSymbols } = useSymbols();
   const { candles, isLoading, error, refetch } = useMexcData({ symbol, interval });
 
   const currentPrice =
@@ -41,46 +41,39 @@ export default function Home() {
     document.title = `${currentPrice} | ${symbol}`;
   }, [currentPrice, symbol]);
 
+  const symbolOptions: SelectOption<string>[] = symbols.map((symbol) => ({
+    label: symbol.symbol,
+    value: symbol.symbol,
+  }));
+
   return (
     <main className="flex h-screen flex-col overflow-hidden bg-tw-blue p-4">
       <div className="mb-4 flex flex-wrap items-center justify-between gap-4">
         <div className="flex items-center gap-2">
-          <select
+          <CustomSelect
+            options={symbolOptions}
             value={symbol}
-            onChange={(e) => setSymbol(e.target.value)}
-            className="rounded bg-tw-blue-200 px-2 py-1 text-white"
+            onValueChange={setSymbol}
+            placeholder="Select symbol"
+            isLoading={isLoadingSymbols}
+            loadingPlaceholder="Loading symbols..."
             disabled={isLoadingSymbols}
-          >
-            {isLoadingSymbols ? (
-              <option>Loading symbols...</option>
-            ) : (
-              availableSymbols.map((option) => (
-                <option key={option.symbol} value={option.symbol}>
-                  {option.symbol}
-                </option>
-              ))
-            )}
-          </select>
+            virtualized={false}
+            maxHeight={300}
+            itemHeight={40}
+          />
 
-          <select
+          <CustomSelect
+            options={intervals}
             value={interval}
-            onChange={(e) => setInterval(e.target.value)}
-            className="rounded bg-tw-blue-200 px-2 py-1 text-white"
-          >
-            {intervals.map((option) => (
-              <option key={option.value} value={option.value}>
-                {option.label}
-              </option>
-            ))}
-          </select>
+            onValueChange={setInterval}
+            placeholder="Select interval"
+            virtualized={false}
+          />
 
-          <button
-            onClick={() => refetch()}
-            className="ml-2 rounded bg-tw-blue-200 px-3 py-1 text-white hover:bg-tw-blue-300 cursor-pointer"
-            disabled={isLoading}
-          >
+          <Button onClick={() => refetch()} variant="outline" disabled={isLoading}>
             Refresh
-          </button>
+          </Button>
         </div>
       </div>
 
@@ -90,12 +83,9 @@ export default function Home() {
         ) : error ? (
           <div className="flex h-full w-full flex-col items-center justify-center">
             <p className="text-red-500">Error loading data: {error.message}</p>
-            <button
-              onClick={() => refetch()}
-              className="mt-4 rounded bg-tw-blue-200 px-3 py-1 text-white hover:bg-tw-blue-300"
-            >
+            <Button onClick={() => refetch()} variant="outline">
               Try Again
-            </button>
+            </Button>
           </div>
         ) : (
           <Chart candles={candles} symbol={symbol} timeframe={timeframe} />

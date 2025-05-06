@@ -1,41 +1,40 @@
-import { useState, useEffect } from "react";
+import useSWR from "swr";
 import { fetchCandlesFromMexc } from "@/services/mexcApi";
 import { CandlestickData, Time } from "lightweight-charts";
 
+export type IntervalValue = "Min1" | "Min5" | "Min15" | "Min30" | "Min60" | "Hour4" | "Day1";
+
 interface UseMexcDataProps {
   symbol?: string;
-  interval?: string;
+  interval?: IntervalValue;
   limit?: number;
 }
 
 export default function useMexcData({ symbol = "BTC_USDT", interval = "Min5", limit = 200 }: UseMexcDataProps = {}) {
-  const [candles, setCandles] = useState<CandlestickData<Time>[]>([]);
-  const [isLoading, setIsLoading] = useState<boolean>(true);
-  const [error, setError] = useState<Error | null>(null);
+  const fetchKey = `/api/mexc/candles?symbol=${symbol}&interval=${interval}&limit=${limit}`;
 
-  const fetchData = async () => {
-    try {
-      setIsLoading(true);
-      const data = await fetchCandlesFromMexc(symbol, interval, limit);
-      setCandles(data);
-      setError(null);
-    } catch (err) {
-      setError(err instanceof Error ? err : new Error("An unknown error occurred"));
-      console.error("Error in useMexcData:", err);
-    } finally {
-      setIsLoading(false);
-    }
+  const fetcher = async () => {
+    return await fetchCandlesFromMexc(symbol, interval, limit);
   };
 
-  useEffect(() => {
-    // Initial data fetch
-    fetchData();
-  }, [symbol, interval, limit]); // Re-fetch data if these props change
+  const {
+    data: candles = [],
+    error,
+    isLoading,
+    mutate: refetch,
+  } = useSWR<CandlestickData<Time>[]>(fetchKey, fetcher, {
+    revalidateOnFocus: false,
+    dedupingInterval: 5000, // 5 seconds
+    errorRetryCount: 3,
+    onError: (err) => {
+      console.error("Error in useMexcData:", err);
+    },
+  });
 
   return {
     candles,
     isLoading,
     error,
-    refetch: fetchData,
+    refetch,
   };
 }

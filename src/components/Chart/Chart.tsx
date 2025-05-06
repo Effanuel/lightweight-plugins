@@ -6,7 +6,7 @@ import { ChartOptions } from "./chart-options";
 import usePositionPlugin, { ToolbarId } from "@/hooks/usePositionPlugin";
 import { PriceLinesManager } from "@/plugins/price-line";
 import { CandlestickData, IChartApi, ISeriesApi, LineStyle, Time } from "lightweight-charts";
-import useWebSocket from "@/hooks/useWebSocket";
+import { useWebSocketContext } from "@/context/WebSocketContext";
 
 const priceLinesManager = new PriceLinesManager();
 
@@ -26,7 +26,11 @@ export default function Chart(props: Props) {
   const [lastUpdateTime, setLastUpdateTime] = useState<Date | null>(null);
   const [priceDirection, setPriceDirection] = useState<"up" | "down" | null>(null);
 
-  const { lastTrade, isConnected, subscribeStatus } = useWebSocket(props.symbol || "BTC_USDT");
+  const { lastTrade, isConnected, subscribeStatus, connectToSymbol } = useWebSocketContext();
+
+  useEffect(() => {
+    connectToSymbol(props.symbol || "BTC_USDT");
+  }, [props.symbol, connectToSymbol]);
 
   useEffect(() => {
     if (lastTrade && lastTrade.symbol === props.symbol && subscribeStatus === "subscribed") {
@@ -64,7 +68,7 @@ export default function Chart(props: Props) {
         }
       }
     }
-  }, [lastTrade, props.symbol, subscribeStatus]);
+  }, [lastTrade, props.symbol, subscribeStatus, props.timeframe]);
 
   const watermark = {
     visible: true,
