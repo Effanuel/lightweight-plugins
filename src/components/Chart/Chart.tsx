@@ -30,8 +30,7 @@ export default function Chart(props: Props) {
   }, [props.symbol, connectToSymbol]);
 
   useEffect(() => {
-    console.log(props.candles.at(-1)?.close, lastTrade?.price, lastTrade?.symbol, props.symbol);
-    if (lastTrade && lastTrade.symbol === props.symbol && subscribeStatus === "subscribed") {
+    if (lastTrade && lastTrade.symbol === props.symbol && subscribeStatus === "subscribed" && !props.isLoading) {
       if (realtimePrice !== null) {
         setPriceDirection(lastTrade.price > realtimePrice ? "up" : "down");
       }
