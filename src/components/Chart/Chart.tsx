@@ -4,11 +4,8 @@ import React, { useEffect, useState } from "react";
 import useChart from "@/hooks/useChart";
 import { ChartOptions } from "./chart-options";
 import usePositionPlugin, { ToolbarId } from "@/hooks/usePositionPlugin";
-import { PriceLinesManager } from "@/plugins/price-line";
-import { CandlestickData, IChartApi, ISeriesApi, LineStyle, Time } from "lightweight-charts";
+import { CandlestickData, IChartApi, ISeriesApi, Time } from "lightweight-charts";
 import { useWebSocketContext } from "@/context/WebSocketContext";
-
-const priceLinesManager = new PriceLinesManager();
 
 interface Props {
   candles: CandlestickData<Time>[];
@@ -104,25 +101,9 @@ export default function Chart(props: Props) {
     seriesInstance.current = createCandlesticks(props.candles);
     positionPlugin.create(chartInstance.current, seriesInstance.current);
 
-    priceLinesManager.init(chartInstance.current, seriesInstance.current);
-
-    // Add initial price line using the last candle
-    const lastCandle = props.candles[props.candles.length - 1];
-    const lastPrice = lastCandle.close;
-
-    priceLinesManager.addPriceLine("line1", {
-      price: lastPrice,
-      color: "blue",
-      lineWidth: 1,
-      lineStyle: LineStyle.Solid,
-      axisLabelVisible: true,
-      title: "Current",
-    });
-
     return () => {
       if (chartInstance.current) {
         positionPlugin.remove();
-        priceLinesManager.reset();
         chartInstance.current.remove();
         chartInstance.current = null;
         seriesInstance.current = null;
