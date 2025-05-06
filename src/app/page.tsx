@@ -35,8 +35,6 @@ export default function Home() {
   const currentPrice =
     candles.length > 0 ? (candles[candles.length - 1] as CandlestickData<Time>).close.toFixed(2) : "Loading...";
 
-  const timeframe = intervals.find((i) => i.value === interval)?.label;
-
   useEffect(() => {
     document.title = `${currentPrice} | ${symbol}`;
   }, [currentPrice, symbol]);
@@ -88,7 +86,7 @@ export default function Home() {
             </Button>
           </div>
         ) : (
-          <Chart candles={candles} symbol={symbol} timeframe={timeframe} />
+          <Chart candles={candles} symbol={symbol} isLoading={isLoading} />
         )}
       </div>
     </main>

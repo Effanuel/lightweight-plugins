@@ -24,8 +24,8 @@ export default function useMexcData({ symbol = "BTC_USDT", interval = "Min5", li
     mutate: refetch,
   } = useSWR<CandlestickData<Time>[]>(fetchKey, fetcher, {
     revalidateOnFocus: false,
-    dedupingInterval: 5000, // 5 seconds
     errorRetryCount: 3,
+    keepPreviousData: true,
     onError: (err) => {
       console.error("Error in useMexcData:", err);
     },

@@ -65,7 +65,7 @@ function connectWebSocket(symbol: string) {
           case "rs.sub.deal":
             // Send subscribed event when subscription is confirmed
             self.postMessage({ type: "subscribed", symbol: data.symbol });
-            currentSymbol = subscribingSymbol;
+            currentSymbol ??= subscribingSymbol;
             // Keep the connected event for backward compatibility
             self.postMessage({ type: "connected", symbol: data.symbol });
             break;
