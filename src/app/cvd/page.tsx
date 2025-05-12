@@ -24,7 +24,7 @@ interface BinanceTradeMessage {
   M: boolean; // Ignore
 }
 
-const GroupTimeSeconds = 15;
+const GroupTimeSeconds = 60
 
 export default function CvdPage() {
   const [cvd, setCvd] = useState<number>(0);

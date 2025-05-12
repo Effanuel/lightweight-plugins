@@ -41,7 +41,10 @@ export const ChartOptions: DeepPartial<ChartOptionsI> = {
     mode: PriceScaleMode.Normal,
     ticksVisible: true,
   },
+
   timeScale: {
+    // barSpacing: 100,
+    // minBarSpacing: 100,
     shiftVisibleRangeOnNewBar: true,
     rightOffset: 12,
     fixLeftEdge: false,
