@@ -1,5 +1,6 @@
 import { CanvasRenderingTarget2D, BitmapCoordinatesRenderingScope } from "fancy-canvas";
 import {
+  CandlestickData,
   ICustomSeriesPaneRenderer,
   PaneRendererCustomData,
   PriceToCoordinateConverter,
@@ -8,6 +9,18 @@ import {
 } from "lightweight-charts";
 import { RoundedCandleSeriesOptions } from "./rounded-candles-series";
 import { RoundedCandleSeriesData } from "./data";
+
+const sliceIntoOneDollarPieces = (low: number, high: number, sliceSize = 1) => {
+  const pieces = [];
+  let currentLow = low;
+  let currentHigh = low + sliceSize;
+  while (currentHigh <= high) {
+    pieces.push({ low: currentLow, high: currentHigh });
+    currentLow = currentHigh;
+    currentHigh = currentLow + sliceSize;
+  }
+  return pieces;
+};
 
 export function gridAndCrosshairBitmapWidth(horizontalPixelRatio: number): number {
   return Math.max(1, Math.floor(horizontalPixelRatio));
@@ -73,22 +86,20 @@ export function positionsBox(position1Media: number, position2Media: number, pix
 function optimalCandlestickWidth(barSpacing: number, pixelRatio: number): number {
   const barSpacingSpecialCaseFrom = 2.5;
   const barSpacingSpecialCaseTo = 4;
-  const barSpacingSpecialCaseCoeff = 3;
+  const barSpacingSpecialCaseCoeff = 1.5;
   if (barSpacing >= barSpacingSpecialCaseFrom && barSpacing <= barSpacingSpecialCaseTo) {
     return Math.floor(barSpacingSpecialCaseCoeff * pixelRatio);
   }
   // coeff should be 1 on small barspacing and go to 0.8 while groing bar spacing
-  const barSpacingReducingCoeff = 0.2;
+  const barSpacingReducingCoeff = 0.4;
   const coeff =
-    1 -
+    0.6 -
     (barSpacingReducingCoeff * Math.atan(Math.max(barSpacingSpecialCaseTo, barSpacing) - barSpacingSpecialCaseTo)) /
       (Math.PI * 0.5);
   const res = Math.floor(barSpacing * coeff * pixelRatio);
-  const scaledBarSpacing = Math.floor(barSpacing * pixelRatio);
+  const scaledBarSpacing = Math.floor(barSpacing * 0.7 * pixelRatio);
   const optimal = Math.min(res, scaledBarSpacing);
-  const val = Math.max(Math.floor(pixelRatio), optimal);
-  console.log("optimalCandlestickWidth", val);
-  return 5;
+  return Math.max(Math.floor(pixelRatio), optimal);
 }
 
 /**
@@ -100,6 +111,9 @@ function optimalCandlestickWidth(barSpacing: number, pixelRatio: number): number
  */
 export function candlestickWidth(barSpacing: number, horizontalPixelRatio: number): number {
   let width = optimalCandlestickWidth(barSpacing, horizontalPixelRatio);
+  // Further reduce width by a fixed percentage
+  width = Math.max(Math.floor(width * 0.8), 1);
+
   if (width >= 2) {
     const wickWidth = Math.floor(horizontalPixelRatio);
     if (wickWidth % 2 !== width % 2) {
@@ -116,6 +130,7 @@ interface BarItem {
   closeY: number;
   x: number;
   isUp: boolean;
+  originalData: CandlestickData;
 }
 
 export class RoundedCandleSeriesRenderer<TData extends RoundedCandleSeriesData> implements ICustomSeriesPaneRenderer {
@@ -156,6 +171,7 @@ export class RoundedCandleSeriesRenderer<TData extends RoundedCandleSeriesData> 
         closeY,
         x: bar.x,
         isUp,
+        originalData: bar.originalData,
       };
     });
 
@@ -164,6 +180,59 @@ export class RoundedCandleSeriesRenderer<TData extends RoundedCandleSeriesData> 
     const radius = this._options.radius(this._data.barSpacing);
     this._drawWicks(renderingScope, bars, this._data.visibleRange);
     this._drawCandles(renderingScope, bars, this._data.visibleRange, radius);
+    this._drawBoxes(renderingScope, bars, this._data.visibleRange, priceToCoordinate);
+  }
+
+  private _drawCandles(
+    renderingScope: BitmapCoordinatesRenderingScope,
+    bars: readonly BarItem[],
+    visibleRange: Range<number>,
+    radius: number
+  ): void {
+    if (this._data === null || this._options === null) {
+      return;
+    }
+
+    const { context: ctx, horizontalPixelRatio, verticalPixelRatio } = renderingScope;
+
+    // we want this in media width therefore using 1
+    // positionsLine will adjust for pixelRatio
+    const candleBodyWidth = candlestickWidth(this._data.barSpacing, 1);
+    // Use a narrower width for actual drawing
+    const reducedWidth = Math.max(Math.floor(candleBodyWidth * 0.7), 1);
+
+    for (let i = visibleRange.from; i < visibleRange.to; i++) {
+      const bar = bars[i];
+
+      const verticalPositions = positionsBox(
+        Math.min(bar.openY, bar.closeY),
+        Math.max(bar.openY, bar.closeY),
+        verticalPixelRatio
+      );
+      const linePositions = positionsLine(bar.x, horizontalPixelRatio, reducedWidth);
+
+      ctx.fillStyle = bar.isUp ? this._options.upColor : this._options.downColor;
+
+      // roundRect might need to polyfilled for older browsers
+      if (ctx.roundRect) {
+        ctx.beginPath();
+        ctx.roundRect(
+          linePositions.position,
+          verticalPositions.position,
+          linePositions.length,
+          verticalPositions.length,
+          radius
+        );
+        ctx.fill();
+      } else {
+        ctx.fillRect(
+          linePositions.position,
+          verticalPositions.position,
+          linePositions.length,
+          verticalPositions.length
+        );
+      }
+    }
   }
 
   private _drawWicks(
@@ -189,11 +258,11 @@ export class RoundedCandleSeriesRenderer<TData extends RoundedCandleSeriesData> 
     }
   }
 
-  private _drawCandles(
+  private _drawBoxes(
     renderingScope: BitmapCoordinatesRenderingScope,
     bars: readonly BarItem[],
     visibleRange: Range<number>,
-    radius: number
+    priceToCoordinate: PriceToCoordinateConverter
   ): void {
     if (this._data === null || this._options === null) {
       return;
@@ -204,38 +273,90 @@ export class RoundedCandleSeriesRenderer<TData extends RoundedCandleSeriesData> 
     // we want this in media width therefore using 1
     // positionsLine will adjust for pixelRatio
     const candleBodyWidth = candlestickWidth(this._data.barSpacing, 1);
+    // Use a narrower width for actual drawing
+    const reducedWidth = Math.max(Math.floor(candleBodyWidth * 0.7), 1);
 
     for (let i = visibleRange.from; i < visibleRange.to; i++) {
       const bar = bars[i];
 
-      const verticalPositions = positionsBox(
-        Math.min(bar.openY, bar.closeY),
-        Math.max(bar.openY, bar.closeY),
-        verticalPixelRatio
-      );
-      const linePositions = positionsLine(bar.x, horizontalPixelRatio, candleBodyWidth);
+      //   const pieces = sliceIntoOneDollarPieces(bar.originalData.low, bar.originalData.high);
 
-      ctx.fillStyle = bar.isUp ? this._options.upColor : this._options.downColor;
+      const highestVolume = bar.originalData.customValues?.highestVolume ?? 0;
+      const highestDelta = bar.originalData.customValues?.highestDelta ?? 0;
 
-      // roundRect might need to polyfilled for older browsers
-      if (ctx.roundRect) {
+      for (const [bucketLow, { bidVolume, askVolume, delta }] of Object.entries(
+        bar.originalData.customValues.footprint
+      )) {
+        const bucketHigh = Number(bucketLow) + 0.25;
+        const barLowY = priceToCoordinate(Number(bucketLow)) ?? 0;
+        const barHighY = priceToCoordinate(bucketHigh) ?? 0;
+        const verticalBodyPositions = positionsBox(
+          barLowY,
+          barHighY,
+
+          verticalPixelRatio
+        );
+        const linePositions = positionsLine(bar.x, horizontalPixelRatio, reducedWidth);
+
+        const volumeRatio = (bidVolume + askVolume) / highestVolume;
+        const saturation = Math.round(volumeRatio * 80); // Scale from 20-100% saturation
+        ctx.fillStyle =
+          bidVolume > askVolume
+            ? `hsl(120, ${saturation}%, 50%)` // Green with variable saturation
+            : `hsl(0, ${saturation}%, 50%)`; // Red with variable saturation
+
+        const boxWidth = linePositions.length * 3 * volumeRatio;
+
+        // Draw first rectangle
         ctx.beginPath();
         ctx.roundRect(
-          linePositions.position,
-          verticalPositions.position,
-          linePositions.length,
-          verticalPositions.length
-          //   radius
+          linePositions.position + linePositions.length,
+          verticalBodyPositions.position,
+          boxWidth,
+          verticalBodyPositions.length
         );
         ctx.fill();
-      } else {
-        ctx.fillRect(
-          linePositions.position,
-          verticalPositions.position,
-          linePositions.length,
-          verticalPositions.length
+        ctx.strokeStyle = bidVolume + askVolume === highestVolume ? "#ffff00" : "#ffffff"; // Border color
+        ctx.lineWidth = bidVolume + askVolume === highestVolume ? 2 : 1; // Border thickness
+        ctx.stroke();
+
+        const deltaRatio = Math.abs(delta) / highestDelta;
+        const deltaSaturation = Math.round(deltaRatio * 80);
+        ctx.fillStyle =
+          delta > 0
+            ? `hsl(120, ${deltaSaturation}%, 50%)` // Green with variable saturation
+            : `hsl(0, ${deltaSaturation}%, 50%)`; // Red with variable saturation
+
+        // Draw mirrored rectangle
+        ctx.beginPath();
+        ctx.roundRect(
+          linePositions.position - linePositions.length * 3 * deltaRatio,
+          verticalBodyPositions.position,
+          linePositions.length * 3 * deltaRatio,
+          verticalBodyPositions.length
         );
+        ctx.fill();
+        ctx.strokeStyle = bidVolume + askVolume === highestVolume ? "#ffff00" : "#ffffff"; // Border color
+        ctx.lineWidth = bidVolume + askVolume === highestVolume ? 2 : 1; // Border thickness
+        ctx.stroke();
       }
+      const verticalBodyPositions = positionsBox(
+        bar.lowY,
+        bar.highY,
+        // Math.min(bar.openY, bar.closeY),
+        // Math.max(bar.openY, bar.closeY),
+        verticalPixelRatio
+      );
+
+      const linePositions = positionsLine(bar.x, horizontalPixelRatio, reducedWidth);
+
+      ctx.fillStyle = "#ff0000";
+      ctx.font = "25px Arial";
+      ctx.fillText(
+        bar.originalData.customValues.totalVolume?.toFixed(2),
+        linePositions.position,
+        verticalBodyPositions.position + verticalBodyPositions.length + Math.round(100 * verticalPixelRatio)
+      );
     }
   }
 }
