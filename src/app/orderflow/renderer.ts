@@ -284,10 +284,13 @@ export class RoundedCandleSeriesRenderer<TData extends RoundedCandleSeriesData> 
       const highestVolume = bar.originalData.customValues?.highestVolume ?? 0;
       const highestDelta = bar.originalData.customValues?.highestDelta ?? 0;
 
+      console.log(bar.originalData.customValues?.footprint, "ffff");
+
       for (const [bucketLow, { bidVolume, askVolume, delta }] of Object.entries(
-        bar.originalData.customValues.footprint
+        bar.originalData.customValues?.footprint ?? {}
       )) {
-        const bucketHigh = Number(bucketLow) + 0.25;
+        console.log(bucketLow, "bucketLow");
+        const bucketHigh = Number(bucketLow) + 2;
         const barLowY = priceToCoordinate(Number(bucketLow)) ?? 0;
         const barHighY = priceToCoordinate(bucketHigh) ?? 0;
         const verticalBodyPositions = positionsBox(
