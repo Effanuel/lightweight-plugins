@@ -229,7 +229,7 @@ export function createDrawingToolPlugin<T extends { id: number; style: TStyle },
     },
 
     onMount(ctx: ChartPluginContext): Teardown {
-      const geometry = config.geometry?.(ctx) ?? createDrawingGeometry(ctx, env.tickSize);
+      const geometry = config.geometry?.(ctx) ?? createDrawingGeometry(ctx, env.tickSize, env.lockScroll);
       const kit: DrawingToolKit = { select };
       const gesture = config.gesture(ctx, kit);
       const creation = config.creation(ctx, kit);

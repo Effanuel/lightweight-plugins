@@ -21,6 +21,7 @@ export type DrawingSample = {
 export function createDrawingGeometry(
   ctx: ChartPluginContext,
   tickSize: () => number,
+  lockScroll: (locked: boolean) => void,
 ): ChartGeometry<DrawingSample> {
   const { chart, series, container } = ctx;
   return {
@@ -38,8 +39,6 @@ export function createDrawingGeometry(
       const price = raw == null ? null : snapToTick(raw, tickSize());
       return { x, y, time: timeAtX(chart, x), rawPrice: price, magnetPrice: price };
     },
-    lockScroll(locked: boolean) {
-      chart.applyOptions({ handleScroll: !locked, handleScale: !locked });
-    },
+    lockScroll,
   };
 }

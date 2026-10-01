@@ -17,6 +17,7 @@ export function makeEnv(): ToolEnv {
     tickSize: () => 0.01,
     reportHover: createHoverArbiter(),
     keysActive: () => true,
+    lockScroll: vi.fn(),
   };
 }
 
@@ -76,7 +77,7 @@ export function mouse(x: number, y: number, opts: { altKey?: boolean } = {}) {
 /**
  * Mounts a tool config through the harness with the fake geometry injected.
  * The chart/series stubs cover what the tool configs reach for during a
- * mount: applyOptions (scroll lock), priceToCoordinate (previews),
+ * mount: priceToCoordinate (previews),
  * timeScale().width() (fibonacci preview), timeScale().coordinateToLogical()/
  * timeToCoordinate() (drag time resolution via chart-measure's timeAtX /
  * timeToCoordinateOrNearest / projectPoint).

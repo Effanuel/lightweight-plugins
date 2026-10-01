@@ -117,7 +117,6 @@ export function createMarqueeTool(env: ToolEnv, primitives: Record<DrawingKind, 
       const { chart, container } = ctx;
       mountedCtx = ctx;
       let drag: { startX: number; startY: number } | null = null;
-      const lockScroll = (locked: boolean) => chart.applyOptions({ handleScroll: !locked, handleScale: !locked });
 
       const onMouseDown = (e: MouseEvent) => {
         if (e.button !== 0 || e.defaultPrevented) return;
@@ -131,7 +130,7 @@ export function createMarqueeTool(env: ToolEnv, primitives: Record<DrawingKind, 
         clear();
         drag = { startX: pos.x, startY: pos.y };
         marquee.setRect({ minX: pos.x, minY: pos.y, maxX: pos.x, maxY: pos.y });
-        lockScroll(true);
+        env.lockScroll(true);
         e.preventDefault();
         e.stopImmediatePropagation();
       };
@@ -148,7 +147,7 @@ export function createMarqueeTool(env: ToolEnv, primitives: Record<DrawingKind, 
         const rect = rectFromPoints(drag.startX, drag.startY, pos.x, pos.y);
         drag = null;
         marquee.setRect(null);
-        lockScroll(false);
+        env.lockScroll(false);
         if (!rectIsMeaningful(rect)) return; // a tiny drag is a click
         const sel = emptySelection();
         for (const k of DRAWING_KINDS) sel[k] = new Set(primitives[k].getEnclosedIds(rect));
@@ -193,7 +192,7 @@ export function createMarqueeTool(env: ToolEnv, primitives: Record<DrawingKind, 
 
       return () => {
         unsubHistory();
-        if (drag) lockScroll(false);
+        if (drag) env.lockScroll(false);
         clear();
         mountedCtx = null;
         container.removeEventListener("mousedown", onMouseDown);

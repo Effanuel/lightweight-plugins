@@ -141,8 +141,7 @@ export function pathConfig(
     },
 
     creation(ctx: ChartPluginContext, kit: DrawingToolKit) {
-      const { chart, series } = ctx;
-      const lockScroll = (locked: boolean) => chart.applyOptions({ handleScroll: !locked, handleScale: !locked });
+      const { series } = ctx;
       // Multi-click build: a click within CLOSE_DISTANCE of the previous click finalizes.
       let lastClick = { x: 0, y: 0 };
 
@@ -157,7 +156,7 @@ export function pathConfig(
           if (primitive.buildingPoints.length >= 1) {
             const dist = Math.hypot(s.x - lastClick.x, s.y - lastClick.y);
             if (dist <= CLOSE_DISTANCE) {
-                            const id = env.drawings.generateId();
+              const id = env.drawings.generateId();
               const style = env.tools.getLastUsedStyle("path");
               const pathData = primitive.finalizeBuildingPoints(id, true, { ...style });
               if (pathData) {
@@ -166,7 +165,7 @@ export function pathConfig(
               }
               primitive.setPreview(null);
               env.tools.clearTool();
-              lockScroll(false);
+              env.lockScroll(false);
               return true;
             }
           }
@@ -176,7 +175,7 @@ export function pathConfig(
           }
           primitive.addBuildingPoint({ price: s.magnetPrice, time: s.time });
           lastClick = { x: s.x, y: s.y };
-          lockScroll(true);
+          env.lockScroll(true);
           return true;
         },
 
@@ -189,7 +188,7 @@ export function pathConfig(
         cancel() {
           if (primitive.buildingPoints.length === 0) return;
           primitive.cancelBuilding();
-          lockScroll(false);
+          env.lockScroll(false);
         },
       };
     },

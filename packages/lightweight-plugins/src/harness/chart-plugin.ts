@@ -33,4 +33,9 @@ export type ToolEnv = {
   readonly reportHover: ReportHover;
   /** Whether this manager owns keyboard shortcuts right now (keyboard on, and its chart was clicked last). */
   keysActive(): boolean;
+  /**
+   * Locks chart scroll/scale during a gesture. Unlocking restores the chart's
+   * own options from before the lock; unlocking while unlocked does nothing.
+   */
+  lockScroll(locked: boolean): void;
 };

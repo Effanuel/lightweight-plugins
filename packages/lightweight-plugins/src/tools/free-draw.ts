@@ -92,9 +92,7 @@ export function freeDrawConfig(
       };
     },
 
-    creation(ctx: ChartPluginContext) {
-      const { chart } = ctx;
-      const lockScroll = (locked: boolean) => chart.applyOptions({ handleScroll: !locked, handleScale: !locked });
+    creation() {
       let lastXY: { x: number; y: number } | null = null;
 
       return {
@@ -109,7 +107,7 @@ export function freeDrawConfig(
           primitive.buildingWidth = style.width;
           primitive.addBuildingPoint({ price: s.magnetPrice, time: s.time });
           lastXY = { x: s.x, y: s.y };
-          lockScroll(true);
+          env.lockScroll(true);
           return true;
         },
 
@@ -125,7 +123,7 @@ export function freeDrawConfig(
           if (primitive.buildingPoints.length === 0) return;
           primitive.cancelBuilding();
           lastXY = null;
-          lockScroll(false);
+          env.lockScroll(false);
         },
       };
     },
@@ -139,14 +137,13 @@ export function freeDrawConfig(
       // freehand stroke on window mouseup here (self-contained, no harness change).
       // The tool intentionally stays armed after finalizing so consecutive
       // strokes can be drawn like a pencil; Escape / right-click disarms.
-      const lockScroll = (locked: boolean) => ctx.chart.applyOptions({ handleScroll: !locked, handleScale: !locked });
       const finalize = () => {
         if (primitive.buildingPoints.length === 0) return;
-                const id = env.drawings.generateId();
+        const id = env.drawings.generateId();
         const style = env.tools.getLastUsedStyle("path");
         const data = primitive.finalizeBuildingPoints(id, { ...style });
         if (data) slice.add(data);
-        lockScroll(false);
+        env.lockScroll(false);
       };
       const win = ctx.container.ownerDocument.defaultView!;
       win.addEventListener("mouseup", finalize);

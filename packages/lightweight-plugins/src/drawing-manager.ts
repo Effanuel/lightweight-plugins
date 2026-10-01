@@ -1,4 +1,4 @@
-import type { IChartApi, ISeriesApi, MouseEventParams, SeriesType, Time } from "lightweight-charts";
+import type { ChartOptions, IChartApi, ISeriesApi, MouseEventParams, SeriesType, Time } from "lightweight-charts";
 import type { ChartPlugin, ChartPluginContext, ToolEnv } from "./harness/chart-plugin";
 import { createDrawingToolPlugin, type DrawingToolApi } from "./harness/drawing-tool-plugin";
 import { createHoverArbiter } from "./harness/drawing-hover";
@@ -173,12 +173,25 @@ export class DrawingManager {
     const unregister = registerChartEnv(chart, { getBars: () => bars, tickSize });
 
     const self = Symbol("drawing-manager"); // identity token for the active-manager check
+    // The chart's own scroll/scale options while a gesture holds the lock, else null.
+    // ponytail: one flag, not a depth count — tools unlock unconditionally (tool change, teardown).
+    let beforeLock: Pick<ChartOptions, "handleScroll" | "handleScale"> | null = null;
     const env: ToolEnv = {
       drawings: this.drawings,
       tools: this.tools,
       tickSize,
       reportHover: createHoverArbiter(),
       keysActive: () => keyboard && activeManager === self,
+      lockScroll: (locked) => {
+        if (locked && !beforeLock) {
+          const { handleScroll, handleScale } = chart.options();
+          beforeLock = { handleScroll, handleScale };
+          chart.applyOptions({ handleScroll: false, handleScale: false });
+        } else if (!locked && beforeLock) {
+          chart.applyOptions(beforeLock);
+          beforeLock = null;
+        }
+      },
     };
 
     const prims = {

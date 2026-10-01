@@ -58,12 +58,12 @@ describe("measure tool", () => {
   });
 
   test("switching tool after the first click releases the scroll lock and clears the pending measurement", () => {
-    const { fire, primitive, chart } = mount();
+    const { fire, primitive } = mount();
     env.tools.setActiveTool("measure");
     fire("container", "mousedown", mouse(10, 100));
-    expect(chart.applyOptions).toHaveBeenLastCalledWith({ handleScroll: false, handleScale: false });
+    expect(env.lockScroll).toHaveBeenLastCalledWith(true);
     env.tools.setActiveTool("trend");
-    expect(chart.applyOptions).toHaveBeenLastCalledWith({ handleScroll: true, handleScale: true });
+    expect(env.lockScroll).toHaveBeenLastCalledWith(false);
     expect(primitive.measurement).toBeFalsy();
   });
 

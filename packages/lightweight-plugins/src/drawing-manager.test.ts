@@ -9,7 +9,7 @@ const STYLE = { width: 1, color: "#ffffff", pattern: "solid" as const, opacity: 
  * A fake chart whose single pane is an 800×400 element at the page origin.
  * x maps to logical index x (bars every 10s from time 0), y maps to price y.
  */
-function fakeChart(opts: { minMove?: number; data?: { time: number }[] } = {}) {
+function fakeChart(opts: { minMove?: number; data?: { time: number }[]; options?: Record<string, unknown> } = {}) {
   const container = document.createElement("div");
   const pane = document.createElement("div");
   container.appendChild(pane);
@@ -21,11 +21,15 @@ function fakeChart(opts: { minMove?: number; data?: { time: number }[] } = {}) {
   const dataListeners = new Set<() => void>();
   const clickListeners = new Set<(p: unknown) => void>();
   const attached: ISeriesPrimitive<Time>[] = [];
+  let chartOptions: Record<string, unknown> = opts.options ?? { handleScroll: true, handleScale: true };
 
   const chart = {
     chartElement: () => container,
     panes: () => [{ getHTMLElement: () => pane, getSeries: () => [series] }],
-    applyOptions: vi.fn(),
+    options: () => chartOptions,
+    applyOptions: vi.fn((patch: Record<string, unknown>) => {
+      chartOptions = { ...chartOptions, ...patch };
+    }),
     timeScale: () => ({
       width: () => 800,
       coordinateToLogical: (x: number) => x,
@@ -282,6 +286,32 @@ describe("DrawingManager", () => {
     const valid = fib([{ value: 0, visible: true }, { value: 1.618, visible: false, color: "#ff0000" }]);
     m.setDrawings([valid]);
     expect(m.getDrawings()).toEqual([valid]);
+  });
+
+  test("scroll lock restores the chart's own handleScroll/handleScale on unlock", () => {
+    const original = { handleScroll: false, handleScale: { axisPressedMouseMove: false } };
+    const f = fakeChart({ options: { ...original } });
+    const m = make(f.chart, f.series);
+    m.setTool("trend");
+    fire(f.pane, "mousedown", { clientX: 10, clientY: 50 }); // the anchor click locks
+    expect(f.chart.applyOptions).toHaveBeenLastCalledWith({ handleScroll: false, handleScale: false });
+    m.setTool(null); // cancels the anchor, unlocking
+    expect(f.chart.applyOptions).toHaveBeenLastCalledWith(original);
+    expect(f.chart.options()).toMatchObject(original);
+  });
+
+  test("arming and disarming without a click never re-enables scrolling", () => {
+    const f = fakeChart({ options: { handleScroll: false, handleScale: false } });
+    const m = make(f.chart, f.series);
+    m.setTool("trend");
+    m.setTool(null);
+    m.setTool("measure");
+    m.setTool(null);
+    m.destroy();
+    managers = managers.filter((x) => x !== m);
+    for (const [patch] of vi.mocked(f.chart.applyOptions).mock.calls) {
+      expect(patch).not.toMatchObject({ handleScroll: true });
+    }
   });
 
   test("keyboard: Ctrl+Z undoes, Delete deletes the selection", async () => {

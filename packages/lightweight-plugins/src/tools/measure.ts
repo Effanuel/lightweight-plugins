@@ -37,8 +37,6 @@ export function createMeasureTool(env: ToolEnv): ChartPlugin {
       const { chart, series, container } = ctx;
       let anchor: MeasurePoint | null = null;
 
-      const lockScroll = (locked: boolean) => chart.applyOptions({ handleScroll: !locked, handleScale: !locked });
-
       const pointAt = (e: MouseEvent): MeasurePoint | null => {
         const pos = getChartPaneCoords(e, container);
         if (pos.x >= chart.timeScale().width()) return null;
@@ -54,11 +52,11 @@ export function createMeasureTool(env: ToolEnv): ChartPlugin {
         if (!anchor) {
           anchor = point;
           primitive.clearMeasurement();
-          lockScroll(true);
+          env.lockScroll(true);
         } else {
           primitive.setMeasurement(anchor, point, computeMeasurement(chart, anchor, point));
           anchor = null;
-          lockScroll(false);
+          env.lockScroll(false);
           justFinalized = true;
           env.tools.clearTool();
         }
@@ -75,7 +73,7 @@ export function createMeasureTool(env: ToolEnv): ChartPlugin {
       const cancel = (disarm = true) => {
         if (anchor) {
           anchor = null;
-          lockScroll(false);
+          env.lockScroll(false);
         }
         primitive.clearMeasurement();
         if (disarm) env.tools.clearTool();
