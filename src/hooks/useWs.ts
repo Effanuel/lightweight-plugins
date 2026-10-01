@@ -18,8 +18,8 @@ export default function useWs({
     const streamName = `${lowerCaseSymbol}@trade`;
     const fullUrl = `${url}/${streamName}`;
 
+    // ponytail: effect runs once (deps []), so `error` is still its initial null here; no reset needed.
     console.log(`Connecting to ${fullUrl}...`);
-    setError(null);
 
     if (ws.current && ws.current.readyState !== WebSocket.CLOSED) {
       console.log("Closing previous WebSocket connection...");
