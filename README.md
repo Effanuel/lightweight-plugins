@@ -4,6 +4,8 @@
 
 Deployed at https://lightweight-plugins.vercel.app/
 
+The chart plugins are published on npm as [`@effanuel/lightweight-plugins`](./packages/lightweight-plugins).
+
 ### Run
 
 ```sh
