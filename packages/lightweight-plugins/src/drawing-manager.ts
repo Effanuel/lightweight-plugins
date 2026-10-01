@@ -184,8 +184,9 @@ export class DrawingManager {
       keysActive: () => keyboard && activeManager === self,
       lockScroll: (locked) => {
         if (locked && !beforeLock) {
+          // A copy: options() is the chart's live object, which the lock below merges into.
           const { handleScroll, handleScale } = chart.options();
-          beforeLock = { handleScroll, handleScale };
+          beforeLock = structuredClone({ handleScroll, handleScale });
           chart.applyOptions({ handleScroll: false, handleScale: false });
         } else if (!locked && beforeLock) {
           chart.applyOptions(beforeLock);

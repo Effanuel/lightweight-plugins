@@ -5,6 +5,25 @@ import { DrawingManager, type Drawing } from "./drawing-manager";
 
 const STYLE = { width: 1, color: "#ffffff", pattern: "solid" as const, opacity: 1 };
 
+type Opts = Record<string, unknown>;
+const isPlainObj = (v: unknown): v is Opts => typeof v === "object" && v !== null;
+
+function mergeInto(dst: Opts, src: Opts): void {
+  for (const [k, v] of Object.entries(src)) {
+    if (isPlainObj(v) && isPlainObj(dst[k])) mergeInto(dst[k], v);
+    else dst[k] = isPlainObj(v) ? structuredClone(v) : v;
+  }
+}
+
+function expandScrollScale(patch: Opts): Opts {
+  const { handleScroll: scroll, handleScale: scale } = patch;
+  return {
+    ...patch,
+    ...(typeof scroll === "boolean" && { handleScroll: { mouseWheel: scroll, pressedMouseMove: scroll } }),
+    ...(typeof scale === "boolean" && { handleScale: { mouseWheel: scale, axisPressedMouseMove: scale } }),
+  };
+}
+
 /**
  * A fake chart whose single pane is an 800×400 element at the page origin.
  * x maps to logical index x (bars every 10s from time 0), y maps to price y.
@@ -21,15 +40,17 @@ function fakeChart(opts: { minMove?: number; data?: { time: number }[]; options?
   const dataListeners = new Set<() => void>();
   const clickListeners = new Set<(p: unknown) => void>();
   const attached: ISeriesPrimitive<Time>[] = [];
-  let chartOptions: Record<string, unknown> = opts.options ?? { handleScroll: true, handleScale: true };
+  // Like lightweight-charts: options() hands out the live object, and applyOptions
+  // expands a boolean handleScroll/handleScale into per-input flags merged into it in place.
+  const liveOptions: Record<string, unknown> = {};
+  const applyOptions = (patch: Record<string, unknown>) => mergeInto(liveOptions, expandScrollScale(patch));
+  applyOptions(opts.options ?? { handleScroll: true, handleScale: true });
 
   const chart = {
     chartElement: () => container,
     panes: () => [{ getHTMLElement: () => pane, getSeries: () => [series] }],
-    options: () => chartOptions,
-    applyOptions: vi.fn((patch: Record<string, unknown>) => {
-      chartOptions = { ...chartOptions, ...patch };
-    }),
+    options: () => liveOptions,
+    applyOptions: vi.fn(applyOptions),
     timeScale: () => ({
       width: () => 800,
       coordinateToLogical: (x: number) => x,
@@ -289,15 +310,15 @@ describe("DrawingManager", () => {
   });
 
   test("scroll lock restores the chart's own handleScroll/handleScale on unlock", () => {
-    const original = { handleScroll: false, handleScale: { axisPressedMouseMove: false } };
-    const f = fakeChart({ options: { ...original } });
+    const f = fakeChart({ options: { handleScroll: false, handleScale: { mouseWheel: true, axisPressedMouseMove: false } } });
+    const original = structuredClone(f.chart.options());
     const m = make(f.chart, f.series);
     m.setTool("trend");
     fire(f.pane, "mousedown", { clientX: 10, clientY: 50 }); // the anchor click locks
     expect(f.chart.applyOptions).toHaveBeenLastCalledWith({ handleScroll: false, handleScale: false });
     m.setTool(null); // cancels the anchor, unlocking
     expect(f.chart.applyOptions).toHaveBeenLastCalledWith(original);
-    expect(f.chart.options()).toMatchObject(original);
+    expect(f.chart.options()).toEqual(original);
   });
 
   test("arming and disarming without a click never re-enables scrolling", () => {
