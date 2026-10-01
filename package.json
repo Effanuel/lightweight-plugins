@@ -10,7 +10,7 @@
     "build": "next build",
     "start": "next start",
     "lint": "eslint .",
-    "build:plugins": "pnpm -F @effanuel/lightweight-plugins build"
+    "build:plugins": "pnpm -F @vecordis/lightweight-plugins build"
   },
   "dependencies": {
     "@hookform/resolvers": "^5.9.1",

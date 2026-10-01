@@ -1,11 +1,11 @@
-# @effanuel/lightweight-plugins
+# @vecordis/lightweight-plugins
 
 Plugins for [TradingView Lightweight Charts™](https://github.com/tradingview/lightweight-charts) v5: series primitives, a price-line tool, and custom series, in one tree-shakeable ES module.
 
 ## Install
 
 ```sh
-pnpm add @effanuel/lightweight-plugins lightweight-charts
+pnpm add @vecordis/lightweight-plugins lightweight-charts
 ```
 
 `lightweight-charts` `^5.0.0` is a peer dependency. The package is ESM-only.
@@ -16,7 +16,7 @@ Primitives attach to an existing series:
 
 ```ts
 import { createChart, LineSeries } from 'lightweight-charts';
-import { TrendLine } from '@effanuel/lightweight-plugins';
+import { TrendLine } from '@vecordis/lightweight-plugins';
 
 const chart = createChart(document.getElementById('chart')!);
 const series = chart.addSeries(LineSeries);
@@ -36,7 +36,7 @@ series.attachPrimitive(
 Custom series are added with `addCustomSeries`:
 
 ```ts
-import { HeatMapSeries, type HeatMapData } from '@effanuel/lightweight-plugins';
+import { HeatMapSeries, type HeatMapData } from '@vecordis/lightweight-plugins';
 
 const data: HeatMapData[] = [
 	{ time: '2024-01-02', cells: [{ low: 10, high: 20, amount: 40 }, { low: 20, high: 30, amount: 90 }] },

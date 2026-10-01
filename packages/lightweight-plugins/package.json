@@ -1,5 +1,5 @@
 {
-  "name": "@effanuel/lightweight-plugins",
+  "name": "@vecordis/lightweight-plugins",
   "version": "0.1.0",
   "description": "Plugins for TradingView lightweight-charts v5",
   "keywords": ["lightweight-charts", "tradingview", "charts", "plugins"],
