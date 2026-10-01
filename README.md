@@ -1,15 +1,12 @@
-# Lightweight charts position plugin
+# lightweight-plugins
 
-![plot](./assets/position-plugin.png)
-
-Deployed at https://lightweight-plugins.vercel.app/
-
-The 14 TradingView-derived chart plugins in this repo are packaged for npm as [`@vecordis/lightweight-plugins`](./packages/lightweight-plugins).
+Source of [`@vecordis/lightweight-plugins`](./packages/lightweight-plugins), 14 plugins for TradingView Lightweight Charts™ v5, and of the site that showcases them: https://lightweight-plugins.vercel.app/
 
 ### Run
 
 ```sh
 pnpm install
-pnpm build
-pnpm start
+pnpm dev     # builds the plugins package, then starts Next.js
 ```
+
+`pnpm build` and `pnpm start` run a production build. `/cvd` is a separate Binance cumulative volume delta demo.
