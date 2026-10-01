@@ -29,8 +29,8 @@ export default function PluginCard({ demo }: { demo: Demo }) {
 
   return (
     <article className="flex min-w-0 flex-col gap-3 rounded-lg border border-border bg-[#141722] p-4">
-      <header className="flex items-center justify-between gap-2">
-        <h2 className="truncate font-mono text-sm font-semibold">{demo.name}</h2>
+      <header className="flex flex-wrap items-center justify-between gap-2">
+        <h2 className="font-mono text-sm font-semibold">{demo.name}</h2>
         <Badge variant="secondary">{demo.kind}</Badge>
       </header>
       <p className="text-sm text-muted-foreground">{demo.description}</p>

@@ -173,12 +173,14 @@ series.attachPrimitive(
           { lineColor: "#FF9800", width: 2, labelBackgroundColor: "rgba(20, 23, 34, 0.85)", labelTextColor: "white" },
         ),
       );
+      // Same bars in view at every card width, so neither end's price label is clipped.
+      chart.timeScale().setVisibleLogicalRange({ from: data.length - 60, to: data.length + 25 });
     },
   },
   {
     name: "UserPriceLines",
     kind: "tool",
-    description: 'Hover the right price scale and click the "+" button to add a price line.',
+    description: 'Hover the chart just left of the price scale and click the "+" button to add a price line.',
     sourceUrl: source("user-price-lines"),
     code: `import { UserPriceLines } from '@vecordis/lightweight-plugins';
 
