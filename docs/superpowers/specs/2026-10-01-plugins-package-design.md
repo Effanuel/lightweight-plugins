@@ -81,6 +81,10 @@ collide. Renderers, `defaultOptions`, `PluginBase` and helpers stay internal.
 
 ```ts
 export { AnchoredText } from './plugins/anchored-text/anchored-text';
+// Upstream doesn't export AnchoredText's options interface; derive it so consumers can name it.
+export type AnchoredTextOptions = ConstructorParameters<
+	typeof import('./plugins/anchored-text/anchored-text').AnchoredText
+>[0];
 
 export { BackgroundShadeSeries } from './plugins/background-shade-series/background-shade-series';
 export type { BackgroundShadeSeriesOptions } from './plugins/background-shade-series/options';
@@ -169,7 +173,14 @@ export { VolumeProfile, type VolumeProfileData } from './plugins/volume-profile/
 - **`packages/lightweight-plugins/tsconfig.json`:** `strict`,
   `moduleResolution: "bundler"`, `module: "esnext"`, `target: "ES2020"`,
   `lib: ["dom", "esnext"]`, `skipLibCheck`, `noEmit` (tsup emits),
-  `include: ["src"]`.
+  `ignoreDeprecations: "6.0"`, `include: ["src"]`. The deprecation flag is
+  required: tsup's dts step injects `baseUrl`, which TypeScript 6 rejects with
+  TS5101 (verified in a spike).
+- **Tree-shaking:** with `sideEffects: false` and `lightweight-charts` as a peer,
+  a consumer importing only `TrendLine` bundles about 2.6 KB (spike). Only a few
+  hundred bytes of other plugins' `defaultOptions` literals survive, because an
+  object spread of an imported value isn't provably pure. Per-plugin entries
+  would remove that and are deferred.
 - `.gitignore` gets `packages/*/dist`.
 
 ### Root changes
