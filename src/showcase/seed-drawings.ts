@@ -7,10 +7,13 @@ export function seedDrawings(candles: CandlestickData[]): Drawing[] {
   const n = candles.length;
   const lows = candles.slice(n - 45, n - 25).map((c) => c.low);
   const highs = candles.slice(n - 45, n - 25).map((c) => c.high);
+  // From the March peak, about 2.5% tall: the levels rise into the empty space
+  // above the candles, far enough apart for their labels, all six on screen.
+  const fibBase = candles[n - 138].low;
   return [
     { kind: "h-line", id: 1, price: Number(candles[n - 1].close.toFixed(2)), time: t(n - 1), style: { ...DEFAULT_DRAWING_STYLE, color: "#ff9800", pattern: "dashed" } },
     { kind: "trend", id: 2, p1: { price: candles[n - 80].low, time: t(n - 80) }, p2: { price: candles[n - 50].high, time: t(n - 50) }, style: { ...DEFAULT_DRAWING_STYLE, color: "#2962ff", width: 2 } },
     { kind: "box", id: 3, p1: { price: Math.max(...highs), time: t(n - 45) }, p2: { price: Math.min(...lows), time: t(n - 25) }, style: { ...DEFAULT_BOX_STYLE } },
-    { kind: "fibonacci", id: 4, p1: { price: candles[n - 20].high, time: t(n - 20) }, p2: { price: candles[n - 8].low, time: t(n - 8) }, style: { ...DEFAULT_DRAWING_STYLE, color: "#089981" } },
+    { kind: "fibonacci", id: 4, p1: { price: fibBase + 3, time: t(n - 134) }, p2: { price: fibBase, time: t(n - 138) }, style: { ...DEFAULT_DRAWING_STYLE, color: "#089981" } },
   ];
 }
