@@ -267,14 +267,32 @@ export class DrawingManager {
     };
     doc.addEventListener("keydown", onUndoKeys);
 
-    const emitSelection = () => this.emit("selectionChange", this.getSelection());
+    // Set while a new single selection deselects everything else; those deselects notify too.
+    let exclusive = false;
+    const emitSelection = () => {
+      if (!exclusive) this.emit("selectionChange", this.getSelection());
+    };
+    // One single selection at a time: a hit stops propagation, so the tools
+    // mounted after the clicked one never see the click that should deselect them.
+    const onToolSelection = (owner: DrawingToolApi<unknown>) => (sel: unknown) => {
+      if (sel !== null && !exclusive) {
+        exclusive = true;
+        try {
+          this.marquee.clear();
+          for (const { api } of this.apis) if (api !== owner) api.select(null);
+        } finally {
+          exclusive = false;
+        }
+      }
+      emitSelection();
+    };
     const unsubs = [
       this.drawings.subscribe((s, prev) => {
         if (s.bucket !== prev.bucket) this.emit("change");
       }),
       this.tools.subscribe((tool) => this.emit("toolChange", tool)),
       this.marquee.onChange(emitSelection),
-      ...this.apis.map((a) => a.api.onSelectionChange(emitSelection)),
+      ...this.apis.map(({ api }) => api.onSelectionChange(onToolSelection(api))),
     ];
 
     this.teardown = () => {

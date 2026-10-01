@@ -240,16 +240,15 @@ describe("DrawingManager", () => {
     expect(m.getDrawings()).toHaveLength(2);
   });
 
-  test("deleteSelected removes everything getSelection reports, as one undo step", async () => {
+  test("deleteSelected removes everything getSelection reports, as one undo step", () => {
     const f = fakeChart();
     const m = make(f.chart, f.series);
     m.setDrawings([hline(1, 50)]);
-    fire(f.pane, "mousemove", { clientX: 100, clientY: 50 });
-    await flush();
-    fire(f.pane, "mousedown", { clientX: 100, clientY: 50 });
-    fire(window, "mouseup", { clientX: 100, clientY: 50 });
     m.setTool("v-line");
-    fire(f.pane, "mousedown", { clientX: 30, clientY: 200 });
+    fire(f.pane, "mousedown", { clientX: 30, clientY: 200 }); // creates and singly selects a v-line
+    // Only one single selection exists at a time; add the h-line (anchor x 10, y 50) by marquee.
+    fire(f.pane, "mousedown", { clientX: 0, clientY: 40, ctrlKey: true });
+    fire(window, "mouseup", { clientX: 20, clientY: 60, ctrlKey: true });
     expect(m.getSelection()).toHaveLength(2);
     m.deleteSelected();
     expect(m.getDrawings()).toHaveLength(0);
@@ -357,6 +356,28 @@ describe("DrawingManager", () => {
     document.getSelection()!.removeAllRanges(); // no page text: Ctrl+C copies the drawing
     expect(fire(document, "keydown", { key: "c", ctrlKey: true })).toBe(false); // false = default prevented
     expect(m.paste()).toBe(true);
+  });
+
+  test("clicking a drawing of another kind moves the selection to it", async () => {
+    const f = fakeChart();
+    const m = make(f.chart, f.series);
+    const vline: Drawing = { kind: "v-line", id: 1, price: 200, time: 300, style: { ...STYLE } };
+    m.setDrawings([vline, hline(2, 50)]);
+    const click = async (x: number, y: number) => {
+      fire(f.pane, "mousemove", { clientX: x, clientY: y });
+      await flush();
+      fire(f.pane, "mousedown", { clientX: x, clientY: y });
+      fire(window, "mouseup", { clientX: x, clientY: y });
+    };
+    await click(30, 200);
+    expect(m.getSelection()).toEqual([vline]);
+    const sel = vi.fn();
+    m.on("selectionChange", sel);
+    await click(100, 50);
+    expect(m.getSelection()).toEqual([hline(2, 50)]);
+    expect(sel).toHaveBeenLastCalledWith([hline(2, 50)]);
+    fire(document, "keydown", { key: "Delete" });
+    expect(m.getDrawings()).toEqual([vline]);
   });
 
   test("keyboard: Ctrl+Z undoes, Delete deletes the selection", async () => {
