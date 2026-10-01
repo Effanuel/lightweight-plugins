@@ -153,7 +153,7 @@ describe("applyStep", () => {
 
   it("accepts the store's bucket type without casts", () => {
     const empty = (): DrawingsBucket => ({
-      box: [], path: [], freedraw: [], fib: [], ray: [], trend: [], hline: [], vline: [], vmedian: [],
+      box: [], path: [], freedraw: [], fib: [], ray: [], trend: [], hline: [], vline: [],
     });
     const line = { id: 5, price: 100, time: 10, style: {} as never };
     const before: Record<string, DrawingsBucket> = { [K]: { ...empty(), hline: [line] } };

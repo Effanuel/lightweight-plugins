@@ -29,7 +29,7 @@ type Listener = (state: DrawingStoreState, prev: DrawingStoreState) => void;
 type Touch = [kind: DrawingKind, id: number];
 
 /**
- * A chart's drawings plus their undo history: terminal's zustand drawings
+ * A chart's drawings plus their undo history: terminal's drawings
  * store without panes, surfaces or persistence. Every mutator journals what
  * it touched; with no edit open a write is its own undo step, inside one it
  * joins that step.
