@@ -91,6 +91,45 @@ function seriesMinMove(series: ISeriesApi<SeriesType>): number {
   return format.minMove && format.minMove > 0 ? format.minMove : 0.01;
 }
 
+const isNum = (v: unknown): boolean => typeof v === "number" && Number.isFinite(v);
+const isObj = (v: unknown): v is Record<string, unknown> => typeof v === "object" && v !== null;
+
+function pointProblem(name: string, p: unknown): string | null {
+  return isObj(p) && isNum(p.price) && isNum(p.time) ? null : `${name} must have finite price and time`;
+}
+
+function stylesProblem(kind: DrawingKind, style: unknown): string | null {
+  if (!isObj(style)) return "style must be an object";
+  const strings = kind === "box" ? ["borderColor", "bgColor"] : ["color"];
+  const numbers = kind === "box" ? ["borderWidth", "borderOpacity", "bgOpacity"] : ["width", "opacity"];
+  for (const k of strings) if (typeof style[k] !== "string") return `style.${k} must be a string`;
+  for (const k of numbers) if (!isNum(style[k])) return `style.${k} must be a finite number`;
+  if (kind !== "box" && !["solid", "dashed", "dotted"].includes(style.pattern as string)) {
+    return 'style.pattern must be "solid", "dashed" or "dotted"';
+  }
+  return null;
+}
+
+/** What is wrong with a drawing's data, or null when it is complete. */
+function shapeProblem(kind: DrawingKind, d: object): string | null {
+  const r = d as Record<string, unknown>;
+  if (kind === "hline" || kind === "ray" || kind === "vline") {
+    if (!isNum(r.price) || !isNum(r.time)) return "price and time must be finite numbers";
+  } else if (kind === "trend" || kind === "box" || kind === "fib") {
+    const bad = pointProblem("p1", r.p1) ?? pointProblem("p2", r.p2);
+    if (bad) return bad;
+    if (kind === "fib" && r.levels !== undefined && !Array.isArray(r.levels)) return "levels must be an array";
+  } else {
+    if (!Array.isArray(r.points)) return "points must be an array";
+    for (const p of r.points) {
+      const bad = pointProblem("each point", p);
+      if (bad) return bad;
+    }
+    if (kind === "path" && typeof r.hasArrow !== "boolean") return "hasArrow must be a boolean";
+  }
+  return stylesProblem(kind, r.style);
+}
+
 function pick<T extends object>(patch: object, keys: readonly (keyof T)[]): Partial<T> {
   const out: Partial<T> = {};
   for (const key of keys) if (key in patch) out[key] = (patch as T)[key];
@@ -244,10 +283,13 @@ export class DrawingManager {
     const bucket = emptyBucket();
     const seen = new Set<number>();
     for (const drawing of list) {
-      const kind = PUBLIC_TO_KIND[drawing.kind as DrawingKindName];
-      if (!kind) throw new Error(`Unknown drawing kind "${String(drawing.kind)}"`);
-      if (!Number.isInteger(drawing.id) || drawing.id < 1) throw new Error(`Invalid drawing id ${String(drawing.id)}`);
+      const name = String((drawing as { kind: unknown }).kind);
+      if (!Object.hasOwn(PUBLIC_TO_KIND, name)) throw new Error(`Unknown drawing kind "${name}"`);
+      const kind = PUBLIC_TO_KIND[name as DrawingKindName];
+      if (!Number.isSafeInteger(drawing.id) || drawing.id < 1) throw new Error(`Invalid drawing id ${String(drawing.id)}`);
       if (seen.has(drawing.id)) throw new Error(`Duplicate drawing id ${drawing.id}`);
+      const problem = shapeProblem(kind, drawing);
+      if (problem) throw new Error(`Invalid ${name} drawing ${drawing.id}: ${problem}`);
       seen.add(drawing.id);
       const item = structuredClone(drawing) as { kind?: string; id: number };
       delete item.kind;
@@ -258,6 +300,7 @@ export class DrawingManager {
 
   /** Removes every drawing as one undo step. */
   clear(): void {
+    this.deselectAll();
     this.drawings.clearAll();
   }
 
@@ -294,9 +337,13 @@ export class DrawingManager {
     else this.tools.setLastUsedStyle(STYLE_SLOT[tool], patch as Partial<DrawingStyle>);
   }
 
+  /** Removes everything getSelection reports, as one undo step. */
   deleteSelected(): void {
-    if (this.marquee.deleteSelection()) return;
-    for (const { api } of this.apis) if (api.getSelected()) api.deleteSelected();
+    const selected = this.selectedIds();
+    this.drawings.edit(() => {
+      for (const [kind, ids] of selected) for (const id of ids) this.drawings.remove(kind, id);
+    });
+    this.deselectAll();
   }
 
   undo(): boolean {
@@ -330,6 +377,11 @@ export class DrawingManager {
 
   private emit<E extends keyof Events>(event: E, ...args: Parameters<Events[E]>): void {
     for (const cb of [...(this.listeners.get(event) ?? [])]) (cb as (...a: Parameters<Events[E]>) => void)(...args);
+  }
+
+  private deselectAll(): void {
+    this.marquee.clear();
+    for (const { api } of this.apis) api.select(null);
   }
 
   private selectedIds(): Map<DrawingKind, Set<number>> {

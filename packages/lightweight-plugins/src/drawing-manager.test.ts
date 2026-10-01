@@ -207,10 +207,64 @@ describe("DrawingManager", () => {
     expect(m.copy()).toBe(true);
     expect(m.paste()).toBe(true);
     expect(m.getDrawings()).toHaveLength(2);
-    // The paste becomes the marquee selection (terminal keeps the source's single selection too).
-    expect(m.getSelection().map((d) => d.id)).toContain(2);
-    m.deleteSelected(); // the marquee selection owns the delete, as with the Delete key
-    expect(m.getDrawings().map((d) => d.id)).toEqual([1]);
+    // The paste becomes the marquee selection and the source stays singly selected.
+    expect(m.getSelection().map((d) => d.id)).toEqual([1, 2]);
+    m.deleteSelected();
+    expect(m.getDrawings()).toEqual([]);
+    expect(m.undo()).toBe(true);
+    expect(m.getDrawings()).toHaveLength(2);
+  });
+
+  test("deleteSelected removes everything getSelection reports, as one undo step", async () => {
+    const f = fakeChart();
+    const m = make(f.chart, f.series);
+    m.setDrawings([hline(1, 50)]);
+    fire(f.pane, "mousemove", { clientX: 100, clientY: 50 });
+    await flush();
+    fire(f.pane, "mousedown", { clientX: 100, clientY: 50 });
+    fire(window, "mouseup", { clientX: 100, clientY: 50 });
+    m.setTool("v-line");
+    fire(f.pane, "mousedown", { clientX: 30, clientY: 200 });
+    expect(m.getSelection()).toHaveLength(2);
+    m.deleteSelected();
+    expect(m.getDrawings()).toHaveLength(0);
+    expect(m.getSelection()).toEqual([]);
+    expect(m.undo()).toBe(true);
+    expect(m.getDrawings()).toHaveLength(2);
+  });
+
+  test("clear drops the selection and emits selectionChange", async () => {
+    const f = fakeChart();
+    const m = make(f.chart, f.series);
+    m.setDrawings([hline(1, 50)]);
+    fire(f.pane, "mousemove", { clientX: 100, clientY: 50 });
+    await flush();
+    fire(f.pane, "mousedown", { clientX: 100, clientY: 50 });
+    fire(window, "mouseup", { clientX: 100, clientY: 50 });
+    expect(m.getSelection()).toHaveLength(1);
+    const sel = vi.fn();
+    m.on("selectionChange", sel);
+    m.clear();
+    expect(sel).toHaveBeenLastCalledWith([]);
+    expect(m.getSelection()).toEqual([]);
+  });
+
+  test("setDrawings validates fully: a malformed list throws and changes nothing", () => {
+    const f = fakeChart();
+    const m = make(f.chart, f.series);
+    m.setDrawings([hline(1)]);
+    m.clear();
+    const noStyle = { kind: "h-line", id: 1, price: 50, time: 100 } as unknown as Drawing;
+    expect(() => m.setDrawings([noStyle])).toThrow(/invalid h-line drawing 1/i);
+    expect(m.getDrawings()).toEqual([]);
+    expect(m.undo()).toBe(true); // history untouched: the clear is still undoable
+    expect(m.getDrawings()).toEqual([hline(1)]);
+    expect(() => m.setDrawings([{ ...hline(2), kind: "constructor" } as unknown as Drawing])).toThrow(/unknown drawing kind/i);
+    expect(() => m.setDrawings([hline(2 ** 60)])).toThrow(/invalid drawing id/i);
+    const badTrend = { kind: "trend", id: 3, p1: { price: 1, time: 0 }, p2: { price: Number.NaN, time: 1 }, style: { ...STYLE } } as Drawing;
+    expect(() => m.setDrawings([badTrend])).toThrow(/invalid trend drawing 3/i);
+    m.setDrawings([hline(4)]);
+    expect(m.getDrawings()).toEqual([hline(4)]);
   });
 
   test("keyboard: Ctrl+Z undoes, Delete deletes the selection", async () => {
