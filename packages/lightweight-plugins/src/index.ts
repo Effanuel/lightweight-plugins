@@ -48,3 +48,15 @@ export { TrendLine, type TrendLineOptions } from './plugins/trend-line/trend-lin
 export { UserPriceLines, type UserPriceLinesOptions } from './plugins/user-price-lines/user-price-lines';
 
 export { VolumeProfile, type VolumeProfileData } from './plugins/volume-profile/volume-profile';
+
+export { DrawingManager } from "./drawing-manager";
+export type { Drawing, DrawingKindName, DrawingManagerOptions, ToolName } from "./drawing-manager";
+export { DEFAULT_DRAWING_STYLE, type DrawingStyle } from "./lib/drawing-style";
+export { DEFAULT_FIB_LEVELS, type FibLevel } from "./lib/fib-levels";
+export { DEFAULT_BOX_STYLE, type BoxStyle, type BoxData, type FibData } from "./model";
+export type { HLineData } from "./primitives/HorizontalLinePrimitive";
+export type { RayData } from "./primitives/HorizontalRayPrimitive";
+export type { VLineData } from "./primitives/VerticalLinePrimitive";
+export type { TrendData } from "./primitives/TrendLinePrimitive";
+export type { PathData } from "./primitives/PathToolPrimitive";
+export type { FreeStrokeData } from "./primitives/FreeDrawPrimitive";
