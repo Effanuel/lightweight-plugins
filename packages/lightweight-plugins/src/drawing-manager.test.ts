@@ -335,6 +335,30 @@ describe("DrawingManager", () => {
     }
   });
 
+  test("Ctrl+C with page text selected copies the text, not the selected drawing", async () => {
+    const f = fakeChart();
+    const m = make(f.chart, f.series);
+    m.setDrawings([hline(1, 50)]);
+    fire(f.pane, "mousemove", { clientX: 100, clientY: 50 });
+    await flush();
+    fire(f.pane, "mousedown", { clientX: 100, clientY: 50 });
+    fire(window, "mouseup", { clientX: 100, clientY: 50 });
+    expect(m.getSelection()).toHaveLength(1);
+    const text = document.body.appendChild(document.createElement("p"));
+    text.textContent = "some page text";
+    const range = document.createRange();
+    range.selectNodeContents(text);
+    document.getSelection()!.removeAllRanges();
+    document.getSelection()!.addRange(range);
+    const e = new KeyboardEvent("keydown", { key: "c", ctrlKey: true, bubbles: true, cancelable: true });
+    document.dispatchEvent(e);
+    expect(e.defaultPrevented).toBe(false);
+    expect(m.paste()).toBe(false);
+    document.getSelection()!.removeAllRanges(); // no page text: Ctrl+C copies the drawing
+    expect(fire(document, "keydown", { key: "c", ctrlKey: true })).toBe(false); // false = default prevented
+    expect(m.paste()).toBe(true);
+  });
+
   test("keyboard: Ctrl+Z undoes, Delete deletes the selection", async () => {
     const f = fakeChart();
     const m = make(f.chart, f.series);

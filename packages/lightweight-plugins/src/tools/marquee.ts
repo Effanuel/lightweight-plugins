@@ -160,6 +160,9 @@ export function createMarqueeTool(env: ToolEnv, primitives: Record<DrawingKind, 
         if (!env.keysActive() || isTextEntryTarget(e.target)) return;
         const mod = e.ctrlKey || e.metaKey;
         if (mod && (e.key === "c" || e.key === "C")) {
+          // Text selected on the page: that is what the user is copying.
+          const pageSelection = container.ownerDocument.getSelection();
+          if (pageSelection && !pageSelection.isCollapsed) return;
           if (copy()) e.preventDefault(); // nothing selected → native copy runs
           return;
         }
