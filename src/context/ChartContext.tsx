@@ -2,6 +2,7 @@
 
 import React, { createContext, useContext, useRef, ReactNode } from "react";
 import {
+  CandlestickSeries,
   createChart as lightWeightCreateChart,
   type IChartApi,
   type ISeriesApi,
@@ -60,7 +61,7 @@ export const ChartProvider = ({ children }: { children: ReactNode }) => {
       throw new Error("Failed to initialize candlesticks. Chart is undefined");
     }
 
-    const candlestickSeries = chartInstance.current.addCandlestickSeries(options);
+    const candlestickSeries = chartInstance.current.addSeries(CandlestickSeries, options);
     candlestickSeries.setData(data);
     return (seriesInstance.current = candlestickSeries);
   };

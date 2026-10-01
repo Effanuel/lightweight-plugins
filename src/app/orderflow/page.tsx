@@ -7,20 +7,19 @@ import React from "react";
 import { ChartOptions } from "@/components/Chart/chart-options";
 
 export default function OrderflowPage() {
-  const chartDiv = React.useRef<IChartApi | null>(null);
+  const chartDiv = React.useRef<HTMLDivElement>(null);
 
   React.useEffect(() => {
     if (!chartDiv.current) {
       throw new Error("Chart div element doesnt exist");
     }
 
-    const chart = ((window as unknown as any).chart = createChart(chartDiv.current!, {
+    const chart = createChart(chartDiv.current, {
       ...ChartOptions,
       height: 1000,
       width: 1000,
-    }));
-
-    chartDiv.current = chart;
+    });
+    (window as unknown as { chart?: IChartApi }).chart = chart;
 
     // chart.addLineSeries().setData(generateLineData());
 

@@ -2,7 +2,7 @@
 
 import React, { useState, useRef, useEffect } from "react";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
-import { FixedSizeList as List } from "react-window";
+import { List, type RowComponentProps } from "react-window";
 
 export interface SelectOption<T extends string> {
   label: string;
@@ -23,6 +23,20 @@ interface CustomSelectProps<T extends string> {
   virtualized?: boolean;
   maxHeight?: number;
   itemHeight?: number;
+}
+
+interface OptionRowProps {
+  options: SelectOption<string>[];
+  width: number | string;
+}
+
+function OptionRow({ index, style, options, width }: RowComponentProps<OptionRowProps>) {
+  const option = options[index];
+  return (
+    <SelectItem value={option.value} style={{ ...style, width }}>
+      {option.label}
+    </SelectItem>
+  );
 }
 
 export function CustomSelect<T extends string>({
@@ -68,25 +82,13 @@ export function CustomSelect<T extends string>({
           ) : shouldVirtualize ? (
             <div style={{ height: Math.min(maxHeight, options.length * itemHeight) }}>
               <List
-                height={Math.min(maxHeight, options.length * itemHeight)}
-                itemCount={options.length}
-                itemSize={itemHeight}
-                width="100%"
+                rowComponent={OptionRow}
+                rowCount={options.length}
+                rowHeight={itemHeight}
+                rowProps={{ options, width: contentWidth || "100%" }}
+                style={{ height: Math.min(maxHeight, options.length * itemHeight), width: "100%" }}
                 className="no-scrollbar"
-              >
-                {({ index, style }) => {
-                  const option = options[index];
-                  return (
-                    <SelectItem
-                      key={option.value}
-                      value={option.value}
-                      style={{ ...style, width: contentWidth || "100%" }}
-                    >
-                      {option.label}
-                    </SelectItem>
-                  );
-                }}
-              </List>
+              />
             </div>
           ) : (
             options.map((option) => (

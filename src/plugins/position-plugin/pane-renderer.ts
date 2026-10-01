@@ -1,4 +1,4 @@
-import type { Coordinate, ISeriesPrimitivePaneRenderer } from "lightweight-charts";
+import type { Coordinate, IPrimitivePaneRenderer } from "lightweight-charts";
 import type { MousePosition } from "../utils/mouse";
 import type { CanvasRenderingTarget2D } from "fancy-canvas";
 import { positionsBox } from "../utils/positions";
@@ -21,7 +21,7 @@ interface PaneRendererUpdateParams {
   hoveringPoint: "p1" | "p2" | "p3" | "p4" | null;
 }
 
-export default class RectanglePaneRenderer implements ISeriesPrimitivePaneRenderer {
+export default class RectanglePaneRenderer implements IPrimitivePaneRenderer {
   private params: PaneRendererUpdateParams | null = null;
 
   update(params: PaneRendererUpdateParams) {

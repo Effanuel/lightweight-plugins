@@ -4,30 +4,33 @@ import React from "react";
 import type { Candle } from "@/types/candle";
 import {
   BaselineData,
+  BaselineSeries,
   CandlestickData,
+  CandlestickSeries,
   type CandlestickSeriesPartialOptions,
   type IChartApi,
   type ISeriesApi,
   type LineData,
+  LineSeries,
   createChart as lightWeightCreateChart,
 } from "lightweight-charts";
 
 interface ChartContext {
   chart: React.MutableRefObject<IChartApi | null>;
   createTradeChart: typeof lightWeightCreateChart;
-  createTradeLineSeries: (data: LineData[], options?: CandlestickSeriesPartialOptions) => ISeriesApi<"Line">;
+  createTradeLineSeries: (data: LineData[], options?: CandlestickSeriesPartialOptions) => ISeriesApi<"Line"> | null;
   updateLine1: (data: (oldData: readonly LineData[]) => LineData[]) => void;
   updateLine2: (data: (oldData: readonly LineData[]) => LineData[]) => void;
 
   createCvdChart: typeof lightWeightCreateChart;
-  createCvdLineSeries: (data: LineData[], options?: CandlestickSeriesPartialOptions) => ISeriesApi<"Baseline">;
+  createCvdLineSeries: (data: LineData[], options?: CandlestickSeriesPartialOptions) => ISeriesApi<"Baseline"> | null;
   updateCvd: (data: (oldData: readonly LineData[]) => LineData[]) => void;
 
   createCvdCandleChart: typeof lightWeightCreateChart;
   createCvdCandleSeries: (
     data: CandlestickData[],
     options?: CandlestickSeriesPartialOptions
-  ) => ISeriesApi<"Candlestick">;
+  ) => ISeriesApi<"Candlestick"> | null;
   updateCvdCandle: (data: (oldData: readonly CandlestickData[]) => CandlestickData[]) => void;
 }
 
@@ -80,15 +83,19 @@ export function CvdChartProvider({ children }: { children: React.ReactNode }) {
     return (cvdCandleChartRef.current = lightWeightCreateChart(container, options));
   };
 
-  const createTradeLineSeries = (data: LineData[], options?: CandlestickSeriesPartialOptions): ISeriesApi<"Line"> => {
+  const createTradeLineSeries = (
+    data: LineData[],
+    options?: CandlestickSeriesPartialOptions
+  ): ISeriesApi<"Line"> | null => {
     if (!tradeChartRef.current) {
-      return console.warn("Failed to init line chart. Chart is undefined") as any;
+      console.warn("Failed to init line chart. Chart is undefined");
+      return null;
     }
 
-    const lineSeries = tradeChartRef.current.addLineSeries({ ...options, color: "#ef4444" });
+    const lineSeries = tradeChartRef.current.addSeries(LineSeries, { ...options, color: "#ef4444" });
     // lineSeries.setData(data);
 
-    const secondLineSeries = tradeChartRef.current.addLineSeries({ ...options, color: "#22c55e" });
+    const secondLineSeries = tradeChartRef.current.addSeries(LineSeries, { ...options, color: "#22c55e" });
     secondSeries.current = secondLineSeries;
     // secondLineSeries.setData(data);
 
@@ -98,12 +105,13 @@ export function CvdChartProvider({ children }: { children: React.ReactNode }) {
   const createCvdLineSeries = (
     data: BaselineData[],
     options?: CandlestickSeriesPartialOptions
-  ): ISeriesApi<"Baseline"> => {
+  ): ISeriesApi<"Baseline"> | null => {
     if (!cvdChartRef.current) {
-      return console.warn("Failed to init line chart. Chart is undefined") as any;
+      console.warn("Failed to init line chart. Chart is undefined");
+      return null;
     }
 
-    const lineSeries = cvdChartRef.current.addBaselineSeries({ ...options, baseLineColor: "#ffffff" });
+    const lineSeries = cvdChartRef.current.addSeries(BaselineSeries, { ...options, baseLineColor: "#ffffff" });
     // lineSeries.setData(data);
 
     return (cvdChartSeries.current = lineSeries);
@@ -112,19 +120,21 @@ export function CvdChartProvider({ children }: { children: React.ReactNode }) {
   const createCvdCandleSeries = (
     data: Candle[],
     options?: CandlestickSeriesPartialOptions
-  ): ISeriesApi<"Candlestick"> => {
+  ): ISeriesApi<"Candlestick"> | null => {
     if (!cvdCandleChartRef.current) {
-      return console.warn("Failed to init candlesticks. Chart is undefined") as any;
+      console.warn("Failed to init candlesticks. Chart is undefined");
+      return null;
     }
 
-    const candlestickSeries = cvdCandleChartRef.current.addCandlestickSeries(options);
+    const candlestickSeries = cvdCandleChartRef.current.addSeries(CandlestickSeries, options);
     candlestickSeries.setData(data);
     return (cvdCandleChartSeries.current = candlestickSeries);
   };
 
   const updateLine1 = (data: (oldData: readonly LineData[]) => LineData[]) => {
     if (!series.current) {
-      return console.warn("Failed to update line chart. Series is undefined") as any;
+      console.warn("Failed to update line chart. Series is undefined");
+      return;
     }
 
     series.current.setData(data(series.current.data() as LineData[]));
@@ -132,7 +142,8 @@ export function CvdChartProvider({ children }: { children: React.ReactNode }) {
 
   const updateLine2 = (data: (oldData: readonly LineData[]) => LineData[]) => {
     if (!secondSeries.current) {
-      return console.warn("Failed to update line chart. Series is undefined") as any;
+      console.warn("Failed to update line chart. Series is undefined");
+      return;
     }
 
     secondSeries.current?.setData(data(secondSeries.current.data() as LineData[]));
@@ -140,7 +151,8 @@ export function CvdChartProvider({ children }: { children: React.ReactNode }) {
 
   const updateCvd = (data: (oldData: readonly LineData[]) => LineData[]) => {
     if (!cvdChartSeries.current) {
-      return console.warn("Failed to update line chart. Series is undefined") as any;
+      console.warn("Failed to update line chart. Series is undefined");
+      return;
     }
 
     cvdChartSeries.current.setData(data(cvdChartSeries.current.data() as LineData[]));
@@ -148,7 +160,8 @@ export function CvdChartProvider({ children }: { children: React.ReactNode }) {
 
   const updateCvdCandle = (data: (oldData: readonly CandlestickData[]) => CandlestickData[]) => {
     if (!cvdCandleChartSeries.current) {
-      return console.warn("Failed to update candlestick chart. Series is undefined") as any;
+      console.warn("Failed to update candlestick chart. Series is undefined");
+      return;
     }
 
     cvdCandleChartSeries.current.setData(data(cvdCandleChartSeries.current.data() as CandlestickData[]));
@@ -202,25 +215,30 @@ export default function useChart() {
     return (chart.current = lightWeightCreateChart(container, options));
   };
 
-  const createCandlesticks = (data: Candle[], options?: CandlestickSeriesPartialOptions): ISeriesApi<"Candlestick"> => {
+  const createCandlesticks = (
+    data: Candle[],
+    options?: CandlestickSeriesPartialOptions
+  ): ISeriesApi<"Candlestick"> | null => {
     if (!chart.current) {
-      return console.warn("Failed to init candlesticks. Chart is undefined") as any;
+      console.warn("Failed to init candlesticks. Chart is undefined");
+      return null;
     }
 
-    const candlestickSeries = chart.current.addCandlestickSeries(options);
+    const candlestickSeries = chart.current.addSeries(CandlestickSeries, options);
     candlestickSeries.setData(data);
     return (series.current = candlestickSeries);
   };
 
-  const createLineSeries = (data: LineData[], options?: CandlestickSeriesPartialOptions): ISeriesApi<"Line"> => {
+  const createLineSeries = (data: LineData[], options?: CandlestickSeriesPartialOptions): ISeriesApi<"Line"> | null => {
     if (!chart.current) {
-      return console.warn("Failed to init line chart. Chart is undefined") as any;
+      console.warn("Failed to init line chart. Chart is undefined");
+      return null;
     }
 
-    const lineSeries = chart.current.addLineSeries({ ...options, color: "#ef4444" });
+    const lineSeries = chart.current.addSeries(LineSeries, { ...options, color: "#ef4444" });
     // lineSeries.setData(data);
 
-    const secondLineSeries = chart.current.addLineSeries({ ...options, color: "#22c55e" });
+    const secondLineSeries = chart.current.addSeries(LineSeries, { ...options, color: "#22c55e" });
     secondSeries.current = secondLineSeries;
     // secondLineSeries.setData(data);
 
@@ -229,7 +247,8 @@ export default function useChart() {
 
   const updateLine1 = (data: (oldData: readonly LineData[]) => LineData[]) => {
     if (!series.current) {
-      return console.warn("Failed to update line chart. Series is undefined") as any;
+      console.warn("Failed to update line chart. Series is undefined");
+      return;
     }
 
     series.current.setData(data(series.current.data() as LineData[]));
@@ -237,7 +256,8 @@ export default function useChart() {
 
   const updateLine2 = (data: (oldData: readonly LineData[]) => LineData[]) => {
     if (!secondSeries.current) {
-      return console.warn("Failed to update line chart. Series is undefined") as any;
+      console.warn("Failed to update line chart. Series is undefined");
+      return;
     }
 
     secondSeries.current?.setData(data(secondSeries.current.data() as LineData[]));

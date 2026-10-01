@@ -17,26 +17,37 @@ interface Props {
 export default function Chart(props: Props) {
   const positionPlugin = usePositionPlugin();
   const chartDiv = React.useRef<HTMLDivElement>(null);
-  const [realtimePrice, setRealtimePrice] = useState<number | null>(null);
-  const [priceDirection, setPriceDirection] = useState<"up" | "down" | null>(null);
 
   const { chartInstance, seriesInstance, createChart, createCandlesticks, updateCandle, setData, fitContent } =
     useChartContext();
 
   const { lastTrade, isConnected, subscribeStatus, connectToSymbol } = useWebSocketContext();
 
+  const isLiveTrade =
+    !!lastTrade && lastTrade.symbol === props.symbol && subscribeStatus === "subscribed" && !props.isLoading;
+
+  // Adjust state during render when a new live trade arrives (https://react.dev/learn/you-might-not-need-an-effect).
+  const [live, setLive] = useState<{
+    trade: typeof lastTrade;
+    price: number | null;
+    direction: "up" | "down" | null;
+  }>({ trade: null, price: null, direction: null });
+  if (isLiveTrade && lastTrade !== live.trade) {
+    setLive({
+      trade: lastTrade,
+      price: lastTrade.price,
+      direction: live.price === null ? live.direction : lastTrade.price > live.price ? "up" : "down",
+    });
+  }
+  const realtimePrice = live.price;
+  const priceDirection = live.direction;
+
   useEffect(() => {
     connectToSymbol(props.symbol || "BTC_USDT");
   }, [props.symbol, connectToSymbol]);
 
   useEffect(() => {
-    if (lastTrade && lastTrade.symbol === props.symbol && subscribeStatus === "subscribed" && !props.isLoading) {
-      if (realtimePrice !== null) {
-        setPriceDirection(lastTrade.price > realtimePrice ? "up" : "down");
-      }
-
-      setRealtimePrice(lastTrade.price);
-
+    if (lastTrade && isLiveTrade) {
       const seriesData = seriesInstance.current?.data();
       const lastCandle = seriesData?.at(-1) as CandlestickData<Time>;
 
