@@ -110,6 +110,9 @@ importers:
       '@tradingview/lwc-plugin-vertical-line':
         specifier: ^1.0.0
         version: 1.0.0(lightweight-charts@5.2.1)
+      '@vecordis/lightweight-plugins':
+        specifier: workspace:*
+        version: link:packages/lightweight-plugins
       class-variance-authority:
         specifier: ^0.7.1
         version: 0.7.1

@@ -6,8 +6,8 @@
     "node": "24.x"
   },
   "scripts": {
-    "dev": "next dev --turbopack",
-    "build": "next build",
+    "dev": "pnpm build:plugins && next dev --turbopack",
+    "build": "pnpm build:plugins && next build",
     "start": "next start",
     "lint": "eslint .",
     "build:plugins": "pnpm -F @vecordis/lightweight-plugins build"
@@ -47,6 +47,7 @@
     "@tradingview/lwc-plugin-stacked-area-series": "^1.0.0",
     "@tradingview/lwc-plugin-stacked-bars-series": "^1.0.0",
     "@tradingview/lwc-plugin-vertical-line": "^1.0.0",
+    "@vecordis/lightweight-plugins": "workspace:*",
     "class-variance-authority": "^0.7.1",
     "clsx": "^2.1.1",
     "cmdk": "^1.1.1",
