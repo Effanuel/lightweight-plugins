@@ -4,7 +4,7 @@
 
 Deployed at https://lightweight-plugins.vercel.app/
 
-The chart plugins are published on npm as [`@effanuel/lightweight-plugins`](./packages/lightweight-plugins).
+The 14 TradingView-derived chart plugins in this repo are packaged for npm as [`@effanuel/lightweight-plugins`](./packages/lightweight-plugins).
 
 ### Run
 

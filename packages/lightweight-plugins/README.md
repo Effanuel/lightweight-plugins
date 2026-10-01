@@ -44,6 +44,11 @@ const data: HeatMapData[] = [
 chart.addCustomSeries(new HeatMapSeries()).setData(data);
 ```
 
+Two plugins work differently:
+
+- `UserPriceLines` is not a primitive. Construct it with `new UserPriceLines(chart, series, options)` and it attaches itself; don't pass it to `attachPrimitive`.
+- `PartialPriceLine` draws from the last bar to the price scale, so it needs room right of the last bar, e.g. `chart.timeScale().applyOptions({ rightOffset: 10 })`.
+
 Each plugin's options and data types are exported next to it (for example `TrendLineOptions`, `HeatMapData`).
 
 ## Plugins
