@@ -75,7 +75,14 @@ export function applyStep<B extends Bucket>(
   side: "before" | "after",
   emptyBucket: () => B,
 ): Record<string, B> {
-  const groups = Map.groupBy(step.entries, (e) => `${e.bucketKey}|${e.kind}`);
+  // A loop, not Map.groupBy: that is ES2024 and missing before Safari 17.4.
+  const groups = new Map<string, Entry[]>();
+  for (const e of step.entries) {
+    const key = `${e.bucketKey}|${e.kind}`;
+    const group = groups.get(key);
+    if (group) group.push(e);
+    else groups.set(key, [e]);
+  }
   const next = { ...buckets };
   for (const entries of groups.values()) {
     const { bucketKey, kind } = entries[0];

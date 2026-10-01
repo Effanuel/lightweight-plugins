@@ -134,4 +134,18 @@ describe("DrawingStore", () => {
     expect(undone).toBe(100);
     expect(s.items("hline")).toHaveLength(5);
   });
+
+  test("undo works without Map.groupBy (Safari < 17.4)", () => {
+    const groupBy = Map.groupBy;
+    try {
+      delete (Map as { groupBy?: unknown }).groupBy;
+      const s = new DrawingStore();
+      s.add("hline", line(1));
+      s.update("hline", 1, { price: 20 });
+      expect(s.undo()).toBe(true);
+      expect(s.items("hline")).toEqual([line(1, 10)]);
+    } finally {
+      Map.groupBy = groupBy;
+    }
+  });
 });
