@@ -1,12 +1,14 @@
 {
   "name": "@vecordis/lightweight-plugins",
-  "version": "0.1.0",
-  "description": "Plugins for TradingView lightweight-charts v5",
+  "version": "0.2.0",
+  "description": "Mouse-driven drawing tools for TradingView lightweight-charts v5",
   "keywords": [
     "lightweight-charts",
     "tradingview",
     "charts",
-    "plugins"
+    "drawing",
+    "drawing-tools",
+    "trendline"
   ],
   "license": "Apache-2.0",
   "type": "module",
@@ -21,8 +23,7 @@
     "./package.json": "./package.json"
   },
   "files": [
-    "dist",
-    "NOTICE"
+    "dist"
   ],
   "repository": {
     "type": "git",

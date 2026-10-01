@@ -1,6 +1,8 @@
 # @vecordis/lightweight-plugins
 
-Plugins for [TradingView Lightweight Charts™](https://github.com/tradingview/lightweight-charts) v5: series primitives, a price-line tool, and custom series, in one tree-shakeable ES module.
+Mouse-driven drawing tools for [TradingView Lightweight Charts™](https://github.com/tradingview/lightweight-charts) v5: horizontal line, horizontal ray, vertical line, trend line, box, Fibonacci, path, free draw and measure, with selection, dragging, undo/redo, copy/paste and marquee select. No framework required.
+
+Demo: https://lightweight-plugins.vercel.app/
 
 ## Install
 
@@ -12,64 +14,38 @@ pnpm add @vecordis/lightweight-plugins lightweight-charts
 
 ## Usage
 
-Primitives attach to an existing series:
-
 ```ts
-import { createChart, LineSeries } from 'lightweight-charts';
-import { TrendLine } from '@vecordis/lightweight-plugins';
+import { createChart, CandlestickSeries } from 'lightweight-charts';
+import { DrawingManager } from '@vecordis/lightweight-plugins';
 
-const chart = createChart(document.getElementById('chart')!);
-const series = chart.addSeries(LineSeries);
-series.setData(data);
+const chart = createChart(container);
+const series = chart.addSeries(CandlestickSeries);
+series.setData(candles); // times must be UTCTimestamp (seconds)
 
-series.attachPrimitive(
-	new TrendLine(
-		chart,
-		series,
-		{ time: data[10].time, price: data[10].value },
-		{ time: data[40].time, price: data[40].value },
-		{ lineColor: '#d50000', width: 2 },
-	),
-);
+const drawings = new DrawingManager(chart, series);
+drawings.setTool('trend'); // the user clicks twice on the chart
 ```
 
-Custom series are added with `addCustomSeries`:
+Tools: `'select' | 'h-line' | 'h-ray' | 'v-line' | 'trend' | 'box' | 'fibonacci' | 'path' | 'free-draw' | 'measure'`.
 
-```ts
-import { HeatMapSeries, type HeatMapData } from '@vecordis/lightweight-plugins';
+| Member | |
+|---|---|
+| `new DrawingManager(chart, series, { tickSize?, keyboard? })` | `tickSize` defaults to the series' `priceFormat.minMove`; `keyboard` (default `true`) enables the shortcuts below |
+| `setTool(tool \| null)`, `getTool()` | arm / disarm a tool |
+| `getDrawings()`, `setDrawings(list)` | serializable drawings (`{ kind, id, …, style }`); `setDrawings` replaces all, clears undo history, and throws on an unknown kind or a bad/duplicate id |
+| `clear()`, `setHidden(b)`, `isHidden()` | clear all (undoable), hide/show |
+| `getSelection()`, `setStyle(patch)`, `deleteSelected()` | style keys are `color width pattern opacity` for lines, `borderColor borderWidth borderOpacity bgColor bgOpacity` for boxes |
+| `setToolStyle(tool, patch)` | style for that tool's next drawings |
+| `undo()`, `redo()`, `copy()`, `paste()` | |
+| `on('change' \| 'toolChange' \| 'selectionChange', cb)` | returns an unsubscribe function |
+| `destroy()` | detaches everything |
 
-const data: HeatMapData[] = [
-	{ time: '2024-01-02', cells: [{ low: 10, high: 20, amount: 40 }, { low: 20, high: 30, amount: 90 }] },
-];
-chart.addCustomSeries(new HeatMapSeries()).setData(data);
-```
+Saving drawings is up to you, e.g. `drawings.on('change', () => localStorage.setItem('d', JSON.stringify(drawings.getDrawings())))`.
 
-Two plugins work differently:
+## Mouse and keyboard
 
-- `UserPriceLines` is not a primitive. Construct it with `new UserPriceLines(chart, series, options)` and it attaches itself; don't pass it to `attachPrimitive`.
-- `PartialPriceLine` draws from the last bar to the price scale, so it needs room right of the last bar, e.g. `chart.timeScale().applyOptions({ rightOffset: 10 })`.
-
-Each plugin's options and data types are exported next to it (for example `TrendLineOptions`, `HeatMapData`).
-
-## Plugins
-
-| Export | Kind | What it does | Links |
-|---|---|---|---|
-| `AnchoredText` | primitive | Text anchored to a fixed spot in the pane, e.g. a watermark | [demo](https://tradingview.github.io/lightweight-charts/plugin-examples/plugins/anchored-text/example/) · [source](https://github.com/tradingview/lightweight-charts/tree/v5.2.1/plugin-examples/src/plugins/anchored-text) |
-| `BandsIndicator` | primitive | Upper and lower bands around the series with a filled area | [demo](https://tradingview.github.io/lightweight-charts/plugin-examples/plugins/bands-indicator/example/) · [source](https://github.com/tradingview/lightweight-charts/tree/v5.2.1/plugin-examples/src/plugins/bands-indicator) |
-| `CrosshairHighlightPrimitive` | primitive | Highlights the bar under the crosshair | [demo](https://tradingview.github.io/lightweight-charts/plugin-examples/plugins/highlight-bar-crosshair/example/) · [source](https://github.com/tradingview/lightweight-charts/tree/v5.2.1/plugin-examples/src/plugins/highlight-bar-crosshair) |
-| `OverlayPriceScale` | primitive | A price scale drawn as an overlay inside the pane | [demo](https://tradingview.github.io/lightweight-charts/plugin-examples/plugins/overlay-price-scale/example/) · [source](https://github.com/tradingview/lightweight-charts/tree/v5.2.1/plugin-examples/src/plugins/overlay-price-scale) |
-| `PartialPriceLine` | primitive | Last-value price line that spans only part of the pane | [demo](https://tradingview.github.io/lightweight-charts/plugin-examples/plugins/partial-price-line/example/) · [source](https://github.com/tradingview/lightweight-charts/tree/v5.2.1/plugin-examples/src/plugins/partial-price-line) |
-| `SessionHighlighting` | primitive | Colours each bar's background from a callback, e.g. by trading session | [demo](https://tradingview.github.io/lightweight-charts/plugin-examples/plugins/session-highlighting/example/) · [source](https://github.com/tradingview/lightweight-charts/tree/v5.2.1/plugin-examples/src/plugins/session-highlighting) |
-| `TrendLine` | primitive | Line between two time/price points, with optional price labels | [demo](https://tradingview.github.io/lightweight-charts/plugin-examples/plugins/trend-line/example/) · [source](https://github.com/tradingview/lightweight-charts/tree/v5.2.1/plugin-examples/src/plugins/trend-line) |
-| `UserPriceLines` | tool | Hover the price scale and click the "+" button to add a price line | [demo](https://tradingview.github.io/lightweight-charts/plugin-examples/plugins/user-price-lines/example/) · [source](https://github.com/tradingview/lightweight-charts/tree/v5.2.1/plugin-examples/src/plugins/user-price-lines) |
-| `VolumeProfile` | primitive | Volume-at-price histogram anchored to a point in time | [demo](https://tradingview.github.io/lightweight-charts/plugin-examples/plugins/volume-profile/example/) · [source](https://github.com/tradingview/lightweight-charts/tree/v5.2.1/plugin-examples/src/plugins/volume-profile) |
-| `BackgroundShadeSeries` | custom series | Shades the background between two colours by value | [demo](https://tradingview.github.io/lightweight-charts/plugin-examples/plugins/background-shade-series/example/) · [source](https://github.com/tradingview/lightweight-charts/tree/v5.2.1/plugin-examples/src/plugins/background-shade-series) |
-| `WhiskerBoxSeries` | custom series | Box-and-whisker (quartiles) plot per bar | [demo](https://tradingview.github.io/lightweight-charts/plugin-examples/plugins/box-whisker-series/example/) · [source](https://github.com/tradingview/lightweight-charts/tree/v5.2.1/plugin-examples/src/plugins/box-whisker-series) |
-| `GroupedBarsSeries` | custom series | Several bars side by side per time point | [demo](https://tradingview.github.io/lightweight-charts/plugin-examples/plugins/grouped-bars-series/example/) · [source](https://github.com/tradingview/lightweight-charts/tree/v5.2.1/plugin-examples/src/plugins/grouped-bars-series) |
-| `HeatMapSeries` | custom series | Heatmap cells over price ranges per bar | [demo](https://tradingview.github.io/lightweight-charts/plugin-examples/plugins/heatmap-series/example/) · [source](https://github.com/tradingview/lightweight-charts/tree/v5.2.1/plugin-examples/src/plugins/heatmap-series) |
-| `LollipopSeries` | custom series | Lollipop chart: a stem and a dot per value | [demo](https://tradingview.github.io/lightweight-charts/plugin-examples/plugins/lollipop-series/example/) · [source](https://github.com/tradingview/lightweight-charts/tree/v5.2.1/plugin-examples/src/plugins/lollipop-series) |
+One click places a horizontal line, ray or vertical line; trend, box, Fibonacci and measure take two clicks; path takes a click per point and finishes on a click near the last one; free draw is press-drag-release (Escape to stop). Drag a drawing to move it, drag a handle to reshape, Alt+drag to duplicate. Ctrl/Cmd+drag or the `select` tool marquee-selects. Delete/Backspace, Escape, Ctrl/Cmd+Z, Ctrl/Cmd+Shift+Z or Ctrl+Y, Ctrl/Cmd+C/V work for the chart that was clicked last. Touch input is not supported.
 
 ## License
 
-Apache-2.0. The plugins are TradingView's `plugin-examples` from lightweight-charts v5.2.1, unmodified apart from file location, except `UserPriceLines`, which creates its icon path lazily so the package can be imported without a DOM. See [NOTICE](./NOTICE).
+Apache-2.0.

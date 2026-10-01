@@ -78,7 +78,7 @@ const STYLE_SLOT: Record<Exclude<ToolName, "select" | "measure" | "box">, StyleS
 };
 
 // The manager whose chart last received a mousedown owns keyboard shortcuts.
-let activeManager: DrawingManager | null = null;
+let activeManager: symbol | null = null;
 
 function readBars(series: ISeriesApi<SeriesType>): { time: number }[] {
   const bars: { time: number }[] = [];
@@ -160,12 +160,13 @@ export class DrawingManager {
     series.subscribeDataChanged(onData);
     const unregister = registerChartEnv(chart, { getBars: () => bars, tickSize });
 
+    const self = Symbol("drawing-manager"); // identity token for the active-manager check
     const env: ToolEnv = {
       drawings: this.drawings,
       tools: this.tools,
       tickSize,
       reportHover: createHoverArbiter(),
-      keysActive: () => keyboard && activeManager === this,
+      keysActive: () => keyboard && activeManager === self,
     };
 
     const prims = {
@@ -222,10 +223,10 @@ export class DrawingManager {
     chart.subscribeClick(onClick);
 
     const activate = () => {
-      activeManager = this;
+      activeManager = self;
     };
     container.addEventListener("mousedown", activate, true);
-    if (activeManager === null) activeManager = this;
+    if (activeManager === null) activeManager = self;
 
     // Ctrl/Cmd+Z undo; Ctrl/Cmd+Shift+Z and Ctrl+Y redo. Consumed only when a step applied.
     const doc = container.ownerDocument;
@@ -254,7 +255,7 @@ export class DrawingManager {
       for (const unsub of unsubs) unsub();
       doc.removeEventListener("keydown", onUndoKeys);
       container.removeEventListener("mousedown", activate, true);
-      if (activeManager === this) activeManager = null;
+      if (activeManager === self) activeManager = null;
       chart.unsubscribeClick(onClick);
       for (const td of teardowns) td();
       for (const plugin of plugins) for (const prim of plugin.primitives()) series.detachPrimitive(prim);

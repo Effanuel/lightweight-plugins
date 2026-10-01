@@ -1,6 +1,6 @@
 # lightweight-plugins
 
-Source of [`@vecordis/lightweight-plugins`](./packages/lightweight-plugins), 14 plugins for TradingView Lightweight Charts™ v5, and of the site that showcases them: https://lightweight-plugins.vercel.app/
+Source of [`@vecordis/lightweight-plugins`](./packages/lightweight-plugins), mouse-driven drawing tools for TradingView Lightweight Charts™ v5, and of the site that demos them: https://lightweight-plugins.vercel.app/
 
 ### Run
 

@@ -1,7 +1,0 @@
-TradingView Lightweight Charts™
-Copyright (с) 2025 TradingView, Inc. https://www.tradingview.com/
-
-This package includes plugin code from tradingview/lightweight-charts
-plugin-examples at tag v5.2.1, unmodified apart from file location, except
-the user-price-lines plugin, which creates its Path2D lazily so the package
-can be imported without a DOM (SSR, Node).
