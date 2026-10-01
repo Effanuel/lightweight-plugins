@@ -181,9 +181,15 @@ export function createMarqueeTool(env: ToolEnv, primitives: Record<DrawingKind, 
         }
       };
 
-      // An undo/redo/load may have removed selected drawings: drop the selection.
+      // An undo/redo/load may have removed selected drawings: drop the selection and any drag.
       const unsubHistory = env.drawings.subscribe((s, prev) => {
-        if (s.historyVersion !== prev.historyVersion) clear();
+        if (s.historyVersion === prev.historyVersion) return;
+        if (drag) {
+          drag = null;
+          marquee.setRect(null);
+          env.lockScroll(false);
+        }
+        clear();
       });
 
       const doc = container.ownerDocument;

@@ -380,6 +380,34 @@ describe("DrawingManager", () => {
     expect(m.getDrawings()).toEqual([vline]);
   });
 
+  test("setDrawings mid-drag ends the drag: the loaded drawing stays put and nothing is undoable", async () => {
+    const f = fakeChart();
+    const m = make(f.chart, f.series);
+    m.setDrawings([hline(1, 50)]);
+    fire(f.pane, "mousemove", { clientX: 100, clientY: 50 });
+    await flush();
+    fire(f.pane, "mousedown", { clientX: 100, clientY: 50 });
+    fire(f.pane, "mousemove", { clientX: 100, clientY: 70 });
+    expect(m.getDrawings()).toEqual([hline(1, 70)]); // dragging
+    m.setDrawings([hline(1, 120)]);
+    fire(f.pane, "mousemove", { clientX: 100, clientY: 90 });
+    fire(window, "mouseup", { clientX: 100, clientY: 90 });
+    expect(m.getDrawings()).toEqual([hline(1, 120)]);
+    expect(m.undo()).toBe(false);
+  });
+
+  test("setDrawings mid-creation drops the pending anchor", () => {
+    const f = fakeChart();
+    const unlocked = structuredClone(f.chart.options());
+    const m = make(f.chart, f.series);
+    m.setTool("trend");
+    fire(f.pane, "mousedown", { clientX: 10, clientY: 50 }); // anchor, locks scroll
+    m.setDrawings([]);
+    expect(f.chart.options()).toEqual(unlocked);
+    fire(f.pane, "mousedown", { clientX: 40, clientY: 80 }); // a fresh anchor, not the second point
+    expect(m.getDrawings()).toEqual([]);
+  });
+
   test("keyboard: Ctrl+Z undoes, Delete deletes the selection", async () => {
     const f = fakeChart();
     const m = make(f.chart, f.series);

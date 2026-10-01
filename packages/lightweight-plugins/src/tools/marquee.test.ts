@@ -75,6 +75,18 @@ describe("marquee tool", () => {
     expect(env.drawings.items("hline")).toHaveLength(2);
   });
 
+  test("a load mid-drag ends the marquee: no selection, scroll unlocked", () => {
+    const id = env.drawings.generateId();
+    env.drawings.add("hline", { id, price: 1, time: 1, style: { ...STYLE } });
+    const { tool, fire } = mount([id]);
+    fire("container", "mousedown", down(10, 10));
+    expect(env.lockScroll).toHaveBeenLastCalledWith(true);
+    env.drawings.load(env.drawings.getState().bucket);
+    expect(env.lockScroll).toHaveBeenLastCalledWith(false);
+    fire("window", "mouseup", down(200, 200));
+    expect(tool.selection().hline.size).toBe(0);
+  });
+
   test("keys are ignored when this manager doesn't own the keyboard", () => {
     const id = env.drawings.generateId();
     env.drawings.add("hline", { id, price: 1, time: 1, style: { ...STYLE } });

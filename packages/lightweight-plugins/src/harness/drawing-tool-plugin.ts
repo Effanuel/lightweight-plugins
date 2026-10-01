@@ -440,10 +440,20 @@ export function createDrawingToolPlugin<T extends { id: number; style: TStyle },
       };
       syncPrimitive();
       const unsubDrawings = env.drawings.subscribe((s, prev) => {
-        // An undo/redo may have changed or removed the selected drawing: drop
-        // the selection (closing the popup). Runs inside the store's set, so
-        // nothing here may write drawings.
-        if (s.historyVersion !== prev.historyVersion) select(null);
+        // An undo/redo/load may have changed or removed the selected drawing:
+        // drop the selection (closing the popup) and whatever was in progress.
+        // Runs inside the store's set, so nothing here may write drawings.
+        if (s.historyVersion !== prev.historyVersion) {
+          select(null);
+          // Only a load lands mid-drag (undo/redo refuse while the drag's edit
+          // is open), and load already dropped that edit: forget it, record nothing.
+          if (controller.isActive()) {
+            controller.cancelActive();
+            primitive.setDragging(false);
+          }
+          dragEdit = false;
+          cancelInProgress();
+        }
         syncPrimitive();
       });
 
