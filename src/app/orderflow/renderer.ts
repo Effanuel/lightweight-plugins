@@ -3,7 +3,7 @@ import {
   ICustomSeriesPaneRenderer,
   PaneRendererCustomData,
   PriceToCoordinateConverter,
-  Range,
+  IRange,
   Time,
 } from "lightweight-charts";
 import { RoundedCandleSeriesOptions } from "./rounded-candles-series";
@@ -169,7 +169,7 @@ export class RoundedCandleSeriesRenderer<TData extends RoundedCandleSeriesData> 
   private _drawWicks(
     renderingScope: BitmapCoordinatesRenderingScope,
     bars: readonly BarItem[],
-    visibleRange: Range<number>
+    visibleRange: IRange<number>
   ): void {
     if (this._data === null || this._options === null) {
       return;
@@ -192,7 +192,7 @@ export class RoundedCandleSeriesRenderer<TData extends RoundedCandleSeriesData> 
   private _drawCandles(
     renderingScope: BitmapCoordinatesRenderingScope,
     bars: readonly BarItem[],
-    visibleRange: Range<number>,
+    visibleRange: IRange<number>,
     radius: number
   ): void {
     if (this._data === null || this._options === null) {

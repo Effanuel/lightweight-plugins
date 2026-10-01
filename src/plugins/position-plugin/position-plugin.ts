@@ -1,7 +1,7 @@
 import type {
   IChartApi,
   ISeriesApi,
-  ISeriesPrimitivePaneView,
+  IPrimitivePaneView,
   MouseEventParams,
   SeriesType,
   Time,
@@ -12,7 +12,7 @@ import type { MousePosition } from "../utils/mouse";
 import RectanglePaneRenderer from "./pane-renderer";
 import { round } from "@/utils";
 
-class RectanglePaneView implements ISeriesPrimitivePaneView {
+class RectanglePaneView implements IPrimitivePaneView {
   private paneRenderer = new RectanglePaneRenderer();
 
   constructor(private _source: Rectangle) {}

@@ -4,11 +4,14 @@ import React from "react";
 import type { Candle } from "@/types/candle";
 import {
   BaselineData,
+  BaselineSeries,
   CandlestickData,
+  CandlestickSeries,
   type CandlestickSeriesPartialOptions,
   type IChartApi,
   type ISeriesApi,
   type LineData,
+  LineSeries,
   createChart as lightWeightCreateChart,
 } from "lightweight-charts";
 
@@ -89,10 +92,10 @@ export function CvdChartProvider({ children }: { children: React.ReactNode }) {
       return null;
     }
 
-    const lineSeries = tradeChartRef.current.addLineSeries({ ...options, color: "#ef4444" });
+    const lineSeries = tradeChartRef.current.addSeries(LineSeries, { ...options, color: "#ef4444" });
     // lineSeries.setData(data);
 
-    const secondLineSeries = tradeChartRef.current.addLineSeries({ ...options, color: "#22c55e" });
+    const secondLineSeries = tradeChartRef.current.addSeries(LineSeries, { ...options, color: "#22c55e" });
     secondSeries.current = secondLineSeries;
     // secondLineSeries.setData(data);
 
@@ -108,7 +111,7 @@ export function CvdChartProvider({ children }: { children: React.ReactNode }) {
       return null;
     }
 
-    const lineSeries = cvdChartRef.current.addBaselineSeries({ ...options, baseLineColor: "#ffffff" });
+    const lineSeries = cvdChartRef.current.addSeries(BaselineSeries, { ...options, baseLineColor: "#ffffff" });
     // lineSeries.setData(data);
 
     return (cvdChartSeries.current = lineSeries);
@@ -123,7 +126,7 @@ export function CvdChartProvider({ children }: { children: React.ReactNode }) {
       return null;
     }
 
-    const candlestickSeries = cvdCandleChartRef.current.addCandlestickSeries(options);
+    const candlestickSeries = cvdCandleChartRef.current.addSeries(CandlestickSeries, options);
     candlestickSeries.setData(data);
     return (cvdCandleChartSeries.current = candlestickSeries);
   };
@@ -221,7 +224,7 @@ export default function useChart() {
       return null;
     }
 
-    const candlestickSeries = chart.current.addCandlestickSeries(options);
+    const candlestickSeries = chart.current.addSeries(CandlestickSeries, options);
     candlestickSeries.setData(data);
     return (series.current = candlestickSeries);
   };
@@ -232,10 +235,10 @@ export default function useChart() {
       return null;
     }
 
-    const lineSeries = chart.current.addLineSeries({ ...options, color: "#ef4444" });
+    const lineSeries = chart.current.addSeries(LineSeries, { ...options, color: "#ef4444" });
     // lineSeries.setData(data);
 
-    const secondLineSeries = chart.current.addLineSeries({ ...options, color: "#22c55e" });
+    const secondLineSeries = chart.current.addSeries(LineSeries, { ...options, color: "#22c55e" });
     secondSeries.current = secondLineSeries;
     // secondLineSeries.setData(data);
 
