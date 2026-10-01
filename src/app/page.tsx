@@ -1,93 +1,38 @@
 "use client";
 
-import dynamic from "next/dynamic";
-import { useState, useEffect } from "react";
-import useMexcData, { IntervalValue } from "@/hooks/useMexcData";
-import useSymbols from "@/hooks/useSymbols";
-import LoadingIndicator from "@/components/LoadingIndicator/LoadingIndicator";
-import { CandlestickData, Time } from "lightweight-charts";
-import { CustomSelect, SelectOption } from "@/components/ui/custom-select";
-import { Button } from "@/components/ui/button";
+import PluginCard from "@/showcase/PluginCard";
+import { demos } from "@/showcase/demos";
 
-// Use dynamic import for the Chart component to avoid SSR issues
-const Chart = dynamic(() => import("@/components/Chart/Chart"), {
-  loading: () => <LoadingIndicator message="Initializing chart..." />,
-  ssr: false, // Disable SSR for the chart to prevent hydration issues
-});
-
-const intervals: SelectOption<IntervalValue>[] = [
-  { label: "1m", value: "Min1" },
-  { label: "5m", value: "Min5" },
-  { label: "15m", value: "Min15" },
-  { label: "30m", value: "Min30" },
-  { label: "1h", value: "Min60" },
-  { label: "4h", value: "Hour4" },
-  { label: "1d", value: "Day1" },
-];
+const NPM_URL = "https://www.npmjs.com/package/@vecordis/lightweight-plugins";
+const GITHUB_URL = "https://github.com/Effanuel/lightweight-plugins/tree/master/packages/lightweight-plugins";
 
 export default function Home() {
-  const [symbol, setSymbol] = useState<string>("BTC_USDT");
-  const [interval, setInterval] = useState<IntervalValue>("Min5");
-
-  const { symbols, isLoading: isLoadingSymbols } = useSymbols();
-  const { candles, isLoading, error, refetch } = useMexcData({ symbol, interval });
-
-  const currentPrice =
-    candles.length > 0 ? (candles[candles.length - 1] as CandlestickData<Time>).close.toFixed(2) : "Loading...";
-
-  useEffect(() => {
-    document.title = `${currentPrice} | ${symbol}`;
-  }, [currentPrice, symbol]);
-
-  const symbolOptions: SelectOption<string>[] = symbols.map((symbol) => ({
-    label: symbol.symbol,
-    value: symbol.symbol,
-  }));
-
   return (
-    <main className="flex h-screen flex-col overflow-hidden bg-tw-blue p-4">
-      <div className="mb-4 flex flex-wrap items-center justify-between gap-4">
-        <div className="flex items-center gap-2">
-          <CustomSelect
-            options={symbolOptions}
-            value={symbol}
-            onValueChange={setSymbol}
-            placeholder="Select symbol"
-            isLoading={isLoadingSymbols}
-            loadingPlaceholder="Loading symbols..."
-            disabled={isLoadingSymbols}
-            virtualized={false}
-            maxHeight={300}
-            itemHeight={40}
-          />
-
-          <CustomSelect
-            options={intervals}
-            value={interval}
-            onValueChange={setInterval}
-            placeholder="Select interval"
-            virtualized={false}
-          />
-
-          <Button onClick={() => refetch()} variant="outline" disabled={isLoading}>
-            Refresh
-          </Button>
-        </div>
-      </div>
-
-      <div className="relative flex-1 overflow-hidden rounded-lg bg-tw-blue-100">
-        {isLoading && candles.length === 0 ? (
-          <LoadingIndicator />
-        ) : error ? (
-          <div className="flex h-full w-full flex-col items-center justify-center">
-            <p className="text-red-500">Error loading data: {error.message}</p>
-            <Button onClick={() => refetch()} variant="outline">
-              Try Again
-            </Button>
-          </div>
-        ) : (
-          <Chart candles={candles} symbol={symbol} isLoading={isLoading} />
-        )}
+    <main className="min-h-screen px-4 py-10">
+      <div className="mx-auto max-w-7xl">
+        <header className="mb-8 flex flex-col gap-3">
+          <h1 className="break-all font-mono text-2xl font-bold">@vecordis/lightweight-plugins</h1>
+          <p className="text-muted-foreground">
+            {demos.length} plugins for TradingView Lightweight Charts v5: series primitives, a price-line tool and
+            custom series.
+          </p>
+          <pre className="w-fit max-w-full overflow-x-auto rounded bg-black/40 px-3 py-2 text-sm">
+            <code>pnpm add @vecordis/lightweight-plugins lightweight-charts</code>
+          </pre>
+          <nav className="flex gap-4 text-sm">
+            <a href={NPM_URL} target="_blank" rel="noreferrer" className="text-blue-400 hover:underline">
+              npm
+            </a>
+            <a href={GITHUB_URL} target="_blank" rel="noreferrer" className="text-blue-400 hover:underline">
+              GitHub
+            </a>
+          </nav>
+        </header>
+        <section className="grid grid-cols-1 gap-4 md:grid-cols-2 lg:grid-cols-3">
+          {demos.map((demo) => (
+            <PluginCard key={demo.name} demo={demo} />
+          ))}
+        </section>
       </div>
     </main>
   );
