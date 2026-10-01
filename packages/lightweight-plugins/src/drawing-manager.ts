@@ -98,6 +98,17 @@ function pointProblem(name: string, p: unknown): string | null {
   return isObj(p) && isNum(p.price) && isNum(p.time) ? null : `${name} must have finite price and time`;
 }
 
+/** Checks exactly FibLevel's fields: finite value, boolean visible, optional string color. */
+function levelsProblem(levels: unknown): string | null {
+  if (!Array.isArray(levels)) return "levels must be an array";
+  for (const [i, l] of levels.entries()) {
+    if (!isObj(l) || !isNum(l.value) || typeof l.visible !== "boolean" || (l.color !== undefined && typeof l.color !== "string")) {
+      return `levels[${i}] must have a finite value, a boolean visible and an optional string color`;
+    }
+  }
+  return null;
+}
+
 function stylesProblem(kind: DrawingKind, style: unknown): string | null {
   if (!isObj(style)) return "style must be an object";
   const strings = kind === "box" ? ["borderColor", "bgColor"] : ["color"];
@@ -118,7 +129,8 @@ function shapeProblem(kind: DrawingKind, d: object): string | null {
   } else if (kind === "trend" || kind === "box" || kind === "fib") {
     const bad = pointProblem("p1", r.p1) ?? pointProblem("p2", r.p2);
     if (bad) return bad;
-    if (kind === "fib" && r.levels !== undefined && !Array.isArray(r.levels)) return "levels must be an array";
+    const levels = kind === "fib" && r.levels !== undefined ? levelsProblem(r.levels) : null;
+    if (levels) return levels;
   } else {
     if (!Array.isArray(r.points)) return "points must be an array";
     for (const p of r.points) {

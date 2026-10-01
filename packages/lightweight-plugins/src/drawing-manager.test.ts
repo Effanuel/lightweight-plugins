@@ -267,6 +267,23 @@ describe("DrawingManager", () => {
     expect(m.getDrawings()).toEqual([hline(4)]);
   });
 
+  test("setDrawings rejects malformed fibonacci levels and keeps the current drawings", () => {
+    const f = fakeChart();
+    const m = make(f.chart, f.series);
+    m.setDrawings([hline(1)]);
+    const fib = (levels: unknown) =>
+      ({ kind: "fibonacci", id: 2, p1: { price: 10, time: 0 }, p2: { price: 20, time: 100 }, style: { ...STYLE }, levels }) as Drawing;
+    expect(() => m.setDrawings([fib([null])])).toThrow(/invalid fibonacci drawing 2: levels\[0\]/i);
+    expect(() => m.setDrawings([fib([{ value: 0, visible: true }, { value: Number.NaN, visible: true }])])).toThrow(/levels\[1\]/);
+    expect(() => m.setDrawings([fib([{ value: 1, visible: "yes" }])])).toThrow(/levels\[0\]/);
+    expect(() => m.setDrawings([fib([{ value: 1, visible: true, color: 5 }])])).toThrow(/levels\[0\]/);
+    expect(() => m.setDrawings([{ ...fib([]), style: undefined } as unknown as Drawing])).toThrow(/style must be an object/);
+    expect(m.getDrawings()).toEqual([hline(1)]);
+    const valid = fib([{ value: 0, visible: true }, { value: 1.618, visible: false, color: "#ff0000" }]);
+    m.setDrawings([valid]);
+    expect(m.getDrawings()).toEqual([valid]);
+  });
+
   test("keyboard: Ctrl+Z undoes, Delete deletes the selection", async () => {
     const f = fakeChart();
     const m = make(f.chart, f.series);
