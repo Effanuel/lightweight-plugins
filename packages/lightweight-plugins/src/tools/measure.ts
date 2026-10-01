@@ -4,7 +4,7 @@ import { computeMeasurement, getChartPaneCoords, priceAtY, timeAtX, type Measure
 
 /**
  * Two-click measure: anchor, then end. The result stays until the next chart
- * click. Not a drawing — never stored, never undoable. Terminal's measuring
+ * click. Not a drawing — never stored. Terminal's measuring
  * tool without the magnet and the range-mode reset.
  */
 export function createMeasureTool(env: ToolEnv): ChartPlugin {

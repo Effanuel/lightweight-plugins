@@ -24,9 +24,9 @@ export type MarqueeTool = {
   clear(): void;
   /** Copies the marquee + single selections; false when nothing is selected. */
   copy(): boolean;
-  /** Pastes offset clones as one undo step and selects them; false with an empty clipboard or before mount. */
+  /** Pastes offset clones and selects them; false with an empty clipboard or before mount. */
   paste(): boolean;
-  /** Deletes the marquee selection as one undo step; false when it is empty. */
+  /** Deletes the marquee selection; false when it is empty. */
   deleteSelection(): boolean;
   onChange(cb: () => void): () => void;
 };
@@ -80,16 +80,14 @@ export function createMarqueeTool(env: ToolEnv, primitives: Record<DrawingKind, 
     if (!clip || !mountedCtx || !clipboard.has()) return false;
     const offset = offsetFromVisibleRange(mountedCtx);
     const next = emptySelection();
-    env.drawings.edit(() => {
-      for (const k of DRAWING_KINDS) {
-        for (const item of clip[k]) {
-          const id = env.drawings.generateId();
-          // @ts-expect-error CLONE_BY_KIND[k] and add(k) share the same DrawingDataMap[k]
-          env.drawings.add(k, CLONE_BY_KIND[k](item, id, offset));
-          next[k].add(id);
-        }
+    for (const k of DRAWING_KINDS) {
+      for (const item of clip[k]) {
+        const id = env.drawings.generateId();
+        // @ts-expect-error CLONE_BY_KIND[k] and add(k) share the same DrawingDataMap[k]
+        env.drawings.add(k, CLONE_BY_KIND[k](item, id, offset));
+        next[k].add(id);
       }
-    });
+    }
     setSelection(next);
     return true;
   };
@@ -97,9 +95,7 @@ export function createMarqueeTool(env: ToolEnv, primitives: Record<DrawingKind, 
   const deleteSelection = () => {
     if (!hasSelection()) return false;
     const sel = selection;
-    env.drawings.edit(() => {
-      for (const k of DRAWING_KINDS) sel[k].forEach((id) => env.drawings.remove(k, id));
-    });
+    for (const k of DRAWING_KINDS) sel[k].forEach((id) => env.drawings.remove(k, id));
     clear();
     return true;
   };
@@ -181,9 +177,9 @@ export function createMarqueeTool(env: ToolEnv, primitives: Record<DrawingKind, 
         }
       };
 
-      // An undo/redo/load may have removed selected drawings: drop the selection and any drag.
-      const unsubHistory = env.drawings.subscribe((s, prev) => {
-        if (s.historyVersion === prev.historyVersion) return;
+      // A load replaced every drawing: drop the selection and any drag.
+      const unsubLoad = env.drawings.subscribe((s, prev) => {
+        if (s.loadVersion === prev.loadVersion) return;
         if (drag) {
           drag = null;
           marquee.setRect(null);
@@ -200,7 +196,7 @@ export function createMarqueeTool(env: ToolEnv, primitives: Record<DrawingKind, 
       doc.addEventListener("keydown", onKeyDown);
 
       return () => {
-        unsubHistory();
+        unsubLoad();
         if (drag) env.lockScroll(false);
         clear();
         mountedCtx = null;

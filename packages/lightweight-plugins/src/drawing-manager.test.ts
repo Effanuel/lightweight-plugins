@@ -153,7 +153,7 @@ describe("DrawingManager", () => {
     expect(m.getDrawings()[0]).toMatchObject({ kind: "v-line", time: 1180 });
   });
 
-  test("getDrawings and setDrawings round-trip and clear history", () => {
+  test("getDrawings and setDrawings round-trip", () => {
     const f = fakeChart();
     const m = make(f.chart, f.series);
     const saved: Drawing[] = [
@@ -163,7 +163,6 @@ describe("DrawingManager", () => {
     ];
     m.setDrawings(saved);
     expect(m.getDrawings()).toEqual(saved);
-    expect(m.undo()).toBe(false);
   });
 
   test("setDrawings rejects an unknown kind and keeps the current drawings", () => {
@@ -182,15 +181,11 @@ describe("DrawingManager", () => {
     expect(m.getDrawings()).toEqual([]);
   });
 
-  test("clear is one undo step", () => {
+  test("clear removes every drawing", () => {
     const f = fakeChart();
     const m = make(f.chart, f.series);
     m.setDrawings([hline(1), hline(2)]);
     m.clear();
-    expect(m.getDrawings()).toEqual([]);
-    expect(m.undo()).toBe(true);
-    expect(m.getDrawings()).toHaveLength(2);
-    expect(m.redo()).toBe(true);
     expect(m.getDrawings()).toEqual([]);
   });
 
@@ -203,7 +198,7 @@ describe("DrawingManager", () => {
     expect(m.getDrawings()).toHaveLength(1);
   });
 
-  test("selecting a drawing by click, then setStyle applies only the keys its style has, as one step", async () => {
+  test("selecting a drawing by click, then setStyle applies only the keys its style has", async () => {
     const f = fakeChart();
     const m = make(f.chart, f.series);
     m.setDrawings([hline(1, 50)]);
@@ -217,8 +212,6 @@ describe("DrawingManager", () => {
     expect(sel).toHaveBeenCalled();
     m.setStyle({ color: "#ff0000", bgColor: "#00ff00" });
     expect(m.getDrawings()[0].style).toEqual({ ...STYLE, color: "#ff0000" });
-    m.undo();
-    expect(m.getDrawings()[0].style).toEqual(STYLE);
   });
 
   test("deleteSelected, then copy and paste", async () => {
@@ -236,11 +229,9 @@ describe("DrawingManager", () => {
     expect(m.getSelection().map((d) => d.id)).toEqual([1, 2]);
     m.deleteSelected();
     expect(m.getDrawings()).toEqual([]);
-    expect(m.undo()).toBe(true);
-    expect(m.getDrawings()).toHaveLength(2);
   });
 
-  test("deleteSelected removes everything getSelection reports, as one undo step", () => {
+  test("deleteSelected removes everything getSelection reports", () => {
     const f = fakeChart();
     const m = make(f.chart, f.series);
     m.setDrawings([hline(1, 50)]);
@@ -253,8 +244,6 @@ describe("DrawingManager", () => {
     m.deleteSelected();
     expect(m.getDrawings()).toHaveLength(0);
     expect(m.getSelection()).toEqual([]);
-    expect(m.undo()).toBe(true);
-    expect(m.getDrawings()).toHaveLength(2);
   });
 
   test("clear drops the selection and emits selectionChange", async () => {
@@ -277,11 +266,8 @@ describe("DrawingManager", () => {
     const f = fakeChart();
     const m = make(f.chart, f.series);
     m.setDrawings([hline(1)]);
-    m.clear();
     const noStyle = { kind: "h-line", id: 1, price: 50, time: 100 } as unknown as Drawing;
     expect(() => m.setDrawings([noStyle])).toThrow(/invalid h-line drawing 1/i);
-    expect(m.getDrawings()).toEqual([]);
-    expect(m.undo()).toBe(true); // history untouched: the clear is still undoable
     expect(m.getDrawings()).toEqual([hline(1)]);
     expect(() => m.setDrawings([{ ...hline(2), kind: "constructor" } as unknown as Drawing])).toThrow(/unknown drawing kind/i);
     expect(() => m.setDrawings([hline(2 ** 60)])).toThrow(/invalid drawing id/i);
@@ -380,7 +366,7 @@ describe("DrawingManager", () => {
     expect(m.getDrawings()).toEqual([vline]);
   });
 
-  test("setDrawings mid-drag ends the drag: the loaded drawing stays put and nothing is undoable", async () => {
+  test("setDrawings mid-drag ends the drag: the loaded drawing stays put", async () => {
     const f = fakeChart();
     const m = make(f.chart, f.series);
     m.setDrawings([hline(1, 50)]);
@@ -393,7 +379,6 @@ describe("DrawingManager", () => {
     fire(f.pane, "mousemove", { clientX: 100, clientY: 90 });
     fire(window, "mouseup", { clientX: 100, clientY: 90 });
     expect(m.getDrawings()).toEqual([hline(1, 120)]);
-    expect(m.undo()).toBe(false);
   });
 
   test("setDrawings mid-creation drops the pending anchor", () => {
@@ -408,7 +393,7 @@ describe("DrawingManager", () => {
     expect(m.getDrawings()).toEqual([]);
   });
 
-  test("keyboard: Ctrl+Z undoes, Delete deletes the selection", async () => {
+  test("keyboard: Delete deletes the selection", () => {
     const f = fakeChart();
     const m = make(f.chart, f.series);
     m.setTool("h-line");
@@ -416,8 +401,19 @@ describe("DrawingManager", () => {
     expect(m.getDrawings()).toHaveLength(1);
     fire(document, "keydown", { key: "Delete" });
     expect(m.getDrawings()).toHaveLength(0);
-    fire(document, "keydown", { key: "z", ctrlKey: true });
-    expect(m.getDrawings()).toHaveLength(1);
+  });
+
+  test("Ctrl+Z is not intercepted and changes nothing", () => {
+    const f = fakeChart();
+    const m = make(f.chart, f.series);
+    m.setTool("h-line");
+    fire(f.pane, "mousedown", { clientX: 100, clientY: 50 });
+    const before = m.getDrawings();
+    expect(before).toHaveLength(1);
+    const e = new KeyboardEvent("keydown", { key: "z", ctrlKey: true, bubbles: true, cancelable: true });
+    document.dispatchEvent(e);
+    expect(e.defaultPrevented).toBe(false);
+    expect(m.getDrawings()).toEqual(before);
   });
 
   test("two managers: keys go only to the last-clicked chart", () => {
@@ -429,7 +425,10 @@ describe("DrawingManager", () => {
     fire(a.pane, "mousedown", { clientX: 100, clientY: 50 });
     mb.setTool("h-line");
     fire(b.pane, "mousedown", { clientX: 100, clientY: 60 });
-    fire(document, "keydown", { key: "z", ctrlKey: true });
+    // Both new drawings are selected; Delete reaches only b, the last clicked.
+    expect(ma.getSelection()).toHaveLength(1);
+    expect(mb.getSelection()).toHaveLength(1);
+    fire(document, "keydown", { key: "Delete" });
     expect(ma.getDrawings()).toHaveLength(1);
     expect(mb.getDrawings()).toHaveLength(0);
   });
@@ -438,21 +437,27 @@ describe("DrawingManager", () => {
     const f = fakeChart();
     const m = make(f.chart, f.series, { keyboard: false });
     m.setTool("h-line");
-    fire(f.pane, "mousedown", { clientX: 100, clientY: 50 });
-    fire(document, "keydown", { key: "z", ctrlKey: true });
+    fire(f.pane, "mousedown", { clientX: 100, clientY: 50 }); // creates and selects
+    expect(m.getSelection()).toHaveLength(1);
+    fire(document, "keydown", { key: "Delete" });
     expect(m.getDrawings()).toHaveLength(1);
   });
 
-  test("destroy removes every listener", () => {
+  test("destroy removes every listener", async () => {
     const f = fakeChart();
     const m = new DrawingManager(f.chart, f.series);
     m.setDrawings([hline(1)]);
+    fire(f.pane, "mousemove", { clientX: 100, clientY: 50 });
+    await flush();
+    fire(f.pane, "mousedown", { clientX: 100, clientY: 50 });
+    fire(window, "mouseup", { clientX: 100, clientY: 50 });
+    expect(m.getSelection()).toHaveLength(1);
     m.destroy();
     expect(f.attached).toHaveLength(0);
     expect(f.clickListeners.size).toBe(0);
     m.setTool("h-line");
     fire(f.pane, "mousedown", { clientX: 100, clientY: 70 });
-    fire(document, "keydown", { key: "z", ctrlKey: true });
+    fire(document, "keydown", { key: "Delete" });
     expect(m.getDrawings()).toEqual([hline(1)]);
   });
 });

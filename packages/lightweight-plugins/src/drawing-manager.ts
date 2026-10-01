@@ -3,7 +3,6 @@ import type { ChartPlugin, ChartPluginContext, ToolEnv } from "./harness/chart-p
 import { createDrawingToolPlugin, type DrawingToolApi } from "./harness/drawing-tool-plugin";
 import { createHoverArbiter } from "./harness/drawing-hover";
 import { registerChartEnv } from "./lib/chart-measure";
-import { isTextEntryTarget } from "./lib/dom-events";
 import type { DrawingStyle } from "./lib/drawing-style";
 import { DRAWING_KINDS, emptyBucket, type BoxStyle, type DrawingDataMap, type DrawingKind } from "./model";
 import { DrawingStore } from "./store/drawing-store";
@@ -54,7 +53,7 @@ export type Drawing = {
 export type DrawingManagerOptions = {
   /** Price grid drawings snap to. Defaults to the series' priceFormat.minMove, else 0.01. */
   tickSize?: number;
-  /** Delete, Escape, undo/redo and copy/paste shortcuts. Default true. */
+  /** Delete, Escape and copy/paste shortcuts. Default true. */
   keyboard?: boolean;
 };
 
@@ -150,7 +149,7 @@ function pick<T extends object>(patch: object, keys: readonly (keyof T)[]): Part
 
 /**
  * Mouse-driven drawing tools for one lightweight-charts series: arm a tool,
- * place drawings by clicking, drag to move or reshape, select, delete, undo,
+ * place drawings by clicking, drag to move or reshape, select, delete,
  * copy/paste and marquee-select. Times are UTCTimestamp seconds.
  */
 export class DrawingManager {
@@ -254,19 +253,6 @@ export class DrawingManager {
     container.addEventListener("mousedown", activate, true);
     if (activeManager === null) activeManager = self;
 
-    // Ctrl/Cmd+Z undo; Ctrl/Cmd+Shift+Z and Ctrl+Y redo. Consumed only when a step applied.
-    const doc = container.ownerDocument;
-    const onUndoKeys = (e: KeyboardEvent) => {
-      if (!env.keysActive() || e.defaultPrevented || isTextEntryTarget(e.target)) return;
-      if (!(e.ctrlKey || e.metaKey) || e.altKey) return;
-      const key = e.key.toLowerCase();
-      const isUndo = key === "z" && !e.shiftKey;
-      const isRedo = (key === "z" && e.shiftKey) || (key === "y" && e.ctrlKey && !e.shiftKey);
-      if (!isUndo && !isRedo) return;
-      if (isUndo ? this.drawings.undo() : this.drawings.redo()) e.preventDefault();
-    };
-    doc.addEventListener("keydown", onUndoKeys);
-
     // Set while a new single selection deselects everything else; those deselects notify too.
     let exclusive = false;
     const emitSelection = () => {
@@ -297,7 +283,6 @@ export class DrawingManager {
 
     this.teardown = () => {
       for (const unsub of unsubs) unsub();
-      doc.removeEventListener("keydown", onUndoKeys);
       container.removeEventListener("mousedown", activate, true);
       if (activeManager === self) activeManager = null;
       chart.unsubscribeClick(onClick);
@@ -323,7 +308,7 @@ export class DrawingManager {
     ).sort((a, b) => a.id - b.id);
   }
 
-  /** Replaces every drawing and clears undo history. Throws, changing nothing, on invalid input. */
+  /** Replaces every drawing. Throws, changing nothing, on invalid input. */
   setDrawings(list: readonly Drawing[]): void {
     const bucket = emptyBucket();
     const seen = new Set<number>();
@@ -343,7 +328,7 @@ export class DrawingManager {
     this.drawings.load(bucket);
   }
 
-  /** Removes every drawing as one undo step. */
+  /** Removes every drawing and unhides. */
   clear(): void {
     this.deselectAll();
     this.drawings.clearAll();
@@ -362,18 +347,15 @@ export class DrawingManager {
     return this.getDrawings().filter((d) => ids.get(PUBLIC_TO_KIND[d.kind])?.has(d.id));
   }
 
-  /** Restyles the selection as one undo step; each drawing takes only the keys its style type has. */
+  /** Restyles the selection; each drawing takes only the keys its style type has. */
   setStyle(patch: Partial<DrawingStyle & BoxStyle>): void {
-    const selected = this.selectedIds();
-    this.drawings.edit(() => {
-      for (const [kind, ids] of selected) {
-        const picked = kind === "box" ? pick<BoxStyle>(patch, BOX_STYLE_KEYS) : pick<DrawingStyle>(patch, DRAWING_STYLE_KEYS);
-        if (Object.keys(picked).length === 0) continue;
-        for (const item of this.drawings.items(kind)) {
-          if (ids.has(item.id)) this.drawings.update(kind, item.id, { style: { ...item.style, ...picked } } as never);
-        }
+    for (const [kind, ids] of this.selectedIds()) {
+      const picked = kind === "box" ? pick<BoxStyle>(patch, BOX_STYLE_KEYS) : pick<DrawingStyle>(patch, DRAWING_STYLE_KEYS);
+      if (Object.keys(picked).length === 0) continue;
+      for (const item of this.drawings.items(kind)) {
+        if (ids.has(item.id)) this.drawings.update(kind, item.id, { style: { ...item.style, ...picked } } as never);
       }
-    });
+    }
   }
 
   /** The style a tool's next drawings get. */
@@ -382,21 +364,10 @@ export class DrawingManager {
     else this.tools.setLastUsedStyle(STYLE_SLOT[tool], patch as Partial<DrawingStyle>);
   }
 
-  /** Removes everything getSelection reports, as one undo step. */
+  /** Removes everything getSelection reports. */
   deleteSelected(): void {
-    const selected = this.selectedIds();
-    this.drawings.edit(() => {
-      for (const [kind, ids] of selected) for (const id of ids) this.drawings.remove(kind, id);
-    });
+    for (const [kind, ids] of this.selectedIds()) for (const id of ids) this.drawings.remove(kind, id);
     this.deselectAll();
-  }
-
-  undo(): boolean {
-    return this.drawings.undo();
-  }
-
-  redo(): boolean {
-    return this.drawings.redo();
   }
 
   copy(): boolean {

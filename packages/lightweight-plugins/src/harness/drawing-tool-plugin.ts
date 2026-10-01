@@ -117,12 +117,6 @@ export type DrawingToolApi<TStyle> = {
   plugin: ChartPlugin;
   select(id: number | null): void;
   handleStyleChange(patch: Partial<TStyle>): void;
-  /**
-   * Runs `fn` inside the open popup's undo step, for popup edits made outside
-   * the harness (fib levels, volume-median settings): everything changed while
-   * one selection's popup stays open is one step, style changes included.
-   */
-  editSelected(fn: () => void): void;
   /** Remove the selected drawing from this tool's slice (the popup's Delete). */
   deleteSelected(): void;
   closePopup(): void;
@@ -130,18 +124,13 @@ export type DrawingToolApi<TStyle> = {
   onSelectionChange(cb: (sel: SelectedDrawing<TStyle> | null) => void): () => void;
 };
 
-// Popup sessions are numbered across every harness instance, so two popups
-// (e.g. two instances of one tool) never share a merge key.
-let nextSession = 0;
-
 /**
  * The drawing-tool harness. Owns everything the ten tool hooks used to
  * copy-paste — selection state, style changes + last-used memory, the
  * Creation Flow, Escape/Delete, hover reporting, store sync (incl. hidden),
  * and listener lifecycle — and delegates drag control-flow to a
  * ChartGestureController over DrawingSamples. Tools supply only behaviour:
- * hit tests, verdicts, drag channels, creation, hover. It also groups undo:
- * a gesture is one step, and so is a popup session.
+ * hit tests, verdicts, drag channels, creation, hover.
  *
  * Pure factory so the whole module tests through this interface with fakes;
  * the manager owns mounting.
@@ -156,18 +145,12 @@ export function createDrawingToolPlugin<T extends { id: number; style: TStyle },
   // The popup positions itself in the container, but selectedY is pane-local;
   // set per mount from the pane element, if any (else 0).
   let paneTop = () => 0;
-  // Popup edits happen outside onMount, so they need the pane captured there.
-  let mounted = false;
-  // Every popup edit under one session merges into one undo step; any change
-  // of the selected id (open, switch, close) starts a new session.
-  let session = 0;
 
   const notify = () => {
     for (const cb of listeners) cb(selected);
   };
 
   const select = (id: number | null) => {
-    if (id !== primitive.selectedId()) session = ++nextSession;
     primitive.select(id);
     if (id == null) {
       if (selected !== null) {
@@ -191,27 +174,19 @@ export function createDrawingToolPlugin<T extends { id: number; style: TStyle },
     select(null);
   };
 
-  // Unmounted there is no pane to key the step on, but no popup either
-  // (teardown deselects): `fn` just runs, and each write is its own step.
-  const editSelected = (fn: () => void) => {
-    if (!mounted) return fn();
-    env.drawings.edit(fn, `popup:${session}`);
+  const handleStyleChange = (patch: Partial<TStyle>) => {
+    const id = primitive.selectedId();
+    if (id == null) return;
+    const item = slice.items().find((it) => it.id === id);
+    if (!item) return;
+    const newStyle = { ...item.style, ...patch };
+    slice.update(id, { style: newStyle } as Partial<Omit<T, "id">>);
+    config.style.remember(patch);
+    if (selected?.id === id) {
+      selected = { ...selected, style: newStyle };
+      notify();
+    }
   };
-
-  const handleStyleChange = (patch: Partial<TStyle>) =>
-    editSelected(() => {
-      const id = primitive.selectedId();
-      if (id == null) return;
-      const item = slice.items().find((it) => it.id === id);
-      if (!item) return;
-      const newStyle = { ...item.style, ...patch };
-      slice.update(id, { style: newStyle } as Partial<Omit<T, "id">>);
-      config.style.remember(patch);
-      if (selected?.id === id) {
-        selected = { ...selected, style: newStyle };
-        notify();
-      }
-    });
 
   const isArmed = () => env.tools.activeTool === config.tool;
   const disarm = () => env.tools.clearTool();
@@ -238,7 +213,6 @@ export function createDrawingToolPlugin<T extends { id: number; style: TStyle },
         const el = ctx.paneEl?.();
         return el ? el.getBoundingClientRect().top - ctx.container.getBoundingClientRect().top : 0;
       };
-      mounted = true;
 
       const controller = new ChartGestureController<Hit, DragCtx, DrawingSample>(geometry, {
         hitTest: gesture.hitTest,
@@ -248,14 +222,6 @@ export function createDrawingToolPlugin<T extends { id: number; style: TStyle },
 
       // Two-click creation state: the first click's sample.
       let anchor: DrawingSample | null = null;
-      // Whether an armed drag holds an undo step open (mousedown to release).
-      let dragEdit = false;
-
-      const endDragEdit = () => {
-        if (!dragEdit) return;
-        dragEdit = false;
-        env.drawings.endEdit();
-      };
 
       const clearAnchor = () => {
         if (creation.mode !== "two-click") return;
@@ -346,18 +312,8 @@ export function createDrawingToolPlugin<T extends { id: number; style: TStyle },
           return;
         }
 
-        // A gesture is one undo step. It opens before the hit is dispatched:
-        // alt+drag clones inside onHit, and the clone and its move must undo
-        // together. A drag whose release never arrived is closed first.
-        endDragEdit();
-        env.drawings.beginEdit();
         controller.handleMouseDown(e);
-        if (controller.isActive()) {
-          dragEdit = true;
-          primitive.setDragging(true);
-        } else {
-          env.drawings.endEdit(); // an instant action: its own step, or nothing
-        }
+        if (controller.isActive()) primitive.setDragging(true);
         if (e.defaultPrevented) e.stopImmediatePropagation();
       };
 
@@ -393,7 +349,6 @@ export function createDrawingToolPlugin<T extends { id: number; style: TStyle },
         if (!controller.isActive()) return;
         controller.handleMouseUp();
         primitive.setDragging(false);
-        endDragEdit(); // after the drop: its writes (a vmedian's rescan) belong to the step
       };
 
       const onKeyDown = (e: KeyboardEvent) => {
@@ -427,8 +382,7 @@ export function createDrawingToolPlugin<T extends { id: number; style: TStyle },
       const onContextMenu = (e: MouseEvent) => {
         if (controller.isActive()) {
           controller.cancelActive();
-          primitive.setDragging(false);
-          endDragEdit(); // the store is the preview, so what moved stays: keep it as a step
+          primitive.setDragging(false); // the store is the preview, so what moved stays
         }
         if (!isArmed()) return;
         e.preventDefault();
@@ -440,18 +394,15 @@ export function createDrawingToolPlugin<T extends { id: number; style: TStyle },
       };
       syncPrimitive();
       const unsubDrawings = env.drawings.subscribe((s, prev) => {
-        // An undo/redo/load may have changed or removed the selected drawing:
-        // drop the selection (closing the popup) and whatever was in progress.
+        // A load replaced every drawing, so the selected one is gone: drop the
+        // selection (closing the popup) and whatever was in progress.
         // Runs inside the store's set, so nothing here may write drawings.
-        if (s.historyVersion !== prev.historyVersion) {
+        if (s.loadVersion !== prev.loadVersion) {
           select(null);
-          // Only a load lands mid-drag (undo/redo refuse while the drag's edit
-          // is open), and load already dropped that edit: forget it, record nothing.
           if (controller.isActive()) {
             controller.cancelActive();
             primitive.setDragging(false);
           }
-          dragEdit = false;
           cancelInProgress();
         }
         syncPrimitive();
@@ -471,13 +422,11 @@ export function createDrawingToolPlugin<T extends { id: number; style: TStyle },
 
       return () => {
         controller.cancelActive();
-        endDragEdit();
         if (creation.mode === "one-click") creation.clearPreview?.();
         clearAnchor();
         if (creation.mode === "custom") creation.cancel();
         select(null); // the primitive is about to detach; a stale popup would outlive it
         paneTop = () => 0;
-        mounted = false;
         mountCleanup?.();
         unsubTool();
         unsubDrawings();
@@ -496,7 +445,6 @@ export function createDrawingToolPlugin<T extends { id: number; style: TStyle },
     plugin,
     select,
     handleStyleChange,
-    editSelected,
     deleteSelected,
     closePopup: () => select(null),
     getSelected: () => selected,

@@ -34,7 +34,6 @@ describe("measure tool", () => {
     expect(primitive.measurement).toBeTruthy();
     expect(env.tools.activeTool).toBeNull();
     expect(Object.values(env.drawings.getState().bucket).every((items) => items.length === 0)).toBe(true);
-    expect(env.drawings.undo()).toBe(false);
   });
 
   test("the next chart click after finishing is swallowed, the one after clears", () => {

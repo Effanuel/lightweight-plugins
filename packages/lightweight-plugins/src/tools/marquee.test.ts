@@ -47,7 +47,7 @@ describe("marquee tool", () => {
     expect(changed).toHaveBeenCalled();
   });
 
-  test("copy then paste adds offset clones as one undo step and selects them", () => {
+  test("copy then paste adds offset clones and selects them", () => {
     const id = env.drawings.generateId();
     env.drawings.add("hline", { id, price: 1, time: 1, style: { ...STYLE } });
     const { tool, fire } = mount([id]);
@@ -57,11 +57,9 @@ describe("marquee tool", () => {
     expect(tool.paste()).toBe(true);
     expect(env.drawings.items("hline")).toHaveLength(2);
     expect(tool.selection().hline.size).toBe(1);
-    env.drawings.undo();
-    expect(env.drawings.items("hline")).toHaveLength(1);
   });
 
-  test("deleteSelection removes the selection as one step", () => {
+  test("deleteSelection removes the selection", () => {
     const id1 = env.drawings.generateId();
     const id2 = env.drawings.generateId();
     env.drawings.add("hline", { id: id1, price: 1, time: 1, style: { ...STYLE } });
@@ -71,8 +69,6 @@ describe("marquee tool", () => {
     fire("window", "mouseup", down(200, 200));
     expect(tool.deleteSelection()).toBe(true);
     expect(env.drawings.items("hline")).toHaveLength(0);
-    env.drawings.undo();
-    expect(env.drawings.items("hline")).toHaveLength(2);
   });
 
   test("a load mid-drag ends the marquee: no selection, scroll unlocked", () => {

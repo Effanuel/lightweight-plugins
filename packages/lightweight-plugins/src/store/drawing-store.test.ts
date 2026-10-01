@@ -22,82 +22,23 @@ describe("DrawingStore", () => {
     expect(s.items("hline")).toEqual([]);
   });
 
-  test("each bare write is one undo step; redo reapplies it", () => {
-    const s = new DrawingStore();
-    s.add("hline", line(1));
-    s.update("hline", 1, { price: 20 });
-    expect(s.undo()).toBe(true);
-    expect(s.items("hline")).toEqual([line(1, 10)]);
-    expect(s.undo()).toBe(true);
-    expect(s.items("hline")).toEqual([]);
-    expect(s.undo()).toBe(false);
-    expect(s.redo()).toBe(true);
-    expect(s.items("hline")).toEqual([line(1, 10)]);
-  });
-
-  test("edit groups several writes into one step; nested edits join it", () => {
-    const s = new DrawingStore();
-    s.edit(() => {
-      s.add("hline", line(1));
-      s.edit(() => s.add("hline", line(2)));
-    });
-    s.undo();
-    expect(s.items("hline")).toEqual([]);
-  });
-
-  test("beginEdit/endEdit span a gesture, and undo refuses while it is open", () => {
-    const s = new DrawingStore();
-    s.add("hline", line(1));
-    s.beginEdit();
-    s.update("hline", 1, { price: 11 });
-    s.update("hline", 1, { price: 12 });
-    expect(s.undo()).toBe(false);
-    s.endEdit();
-    s.undo();
-    expect(s.items("hline")).toEqual([line(1, 10)]);
-  });
-
-  test("edits with the same mergeKey merge into one step", () => {
-    const s = new DrawingStore();
-    s.add("hline", line(1));
-    s.edit(() => s.update("hline", 1, { price: 11 }), "popup:1");
-    s.edit(() => s.update("hline", 1, { price: 12 }), "popup:1");
-    s.undo();
-    expect(s.items("hline")).toEqual([line(1, 10)]);
-  });
-
-  test("untracked writes are not undoable", () => {
-    const s = new DrawingStore();
-    s.untracked(() => s.add("hline", line(1)));
-    expect(s.undo()).toBe(false);
-  });
-
-  test("undo is refused while hidden", () => {
+  test("setHidden hides without touching drawings", () => {
     const s = new DrawingStore();
     s.add("hline", line(1));
     s.setHidden(true);
-    expect(s.undo()).toBe(false);
+    expect(s.isHidden()).toBe(true);
+    expect(s.items("hline")).toEqual([line(1)]);
   });
 
-  test("clearAll removes everything as one step and unhides", () => {
+  test("clearAll removes everything and unhides", () => {
     const s = new DrawingStore();
     s.add("hline", line(1));
     s.add("trend", { id: 2, p1: { price: 1, time: 1 }, p2: { price: 2, time: 2 }, style: { ...STYLE } });
     s.setHidden(true);
     s.clearAll();
     expect(s.items("hline")).toEqual([]);
+    expect(s.items("trend")).toEqual([]);
     expect(s.isHidden()).toBe(false);
-    s.undo();
-    expect(s.items("hline")).toHaveLength(1);
-    expect(s.items("trend")).toHaveLength(1);
-  });
-
-  test("undo bumps historyVersion; plain writes don't", () => {
-    const s = new DrawingStore();
-    s.add("hline", line(1));
-    expect(s.getState().historyVersion).toBe(0);
-    s.undo();
-    expect(s.getState().historyVersion).toBe(1);
   });
 
   test("subscribers get (state, prev) on every change", () => {
@@ -114,38 +55,15 @@ describe("DrawingStore", () => {
     expect(fn).toHaveBeenCalledTimes(1);
   });
 
-  test("load replaces drawings, clears history, continues ids, bumps historyVersion", () => {
+  test("load replaces drawings, continues ids, bumps loadVersion; plain writes don't", () => {
     const s = new DrawingStore();
     s.add("hline", line(1));
+    expect(s.getState().loadVersion).toBe(0);
     const bucket = emptyBucket();
     bucket.hline.push(line(7));
     s.load(bucket);
     expect(s.items("hline")).toEqual([line(7)]);
-    expect(s.undo()).toBe(false);
     expect(s.generateId()).toBe(8);
-    expect(s.getState().historyVersion).toBe(1);
-  });
-
-  test("the undo history keeps the last 100 steps", () => {
-    const s = new DrawingStore();
-    for (let i = 1; i <= 105; i++) s.add("hline", line(i));
-    let undone = 0;
-    while (s.undo()) undone++;
-    expect(undone).toBe(100);
-    expect(s.items("hline")).toHaveLength(5);
-  });
-
-  test("undo works without Map.groupBy (Safari < 17.4)", () => {
-    const groupBy = Map.groupBy;
-    try {
-      delete (Map as { groupBy?: unknown }).groupBy;
-      const s = new DrawingStore();
-      s.add("hline", line(1));
-      s.update("hline", 1, { price: 20 });
-      expect(s.undo()).toBe(true);
-      expect(s.items("hline")).toEqual([line(1, 10)]);
-    } finally {
-      Map.groupBy = groupBy;
-    }
+    expect(s.getState().loadVersion).toBe(1);
   });
 });

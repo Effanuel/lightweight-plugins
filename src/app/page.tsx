@@ -6,8 +6,6 @@ const GITHUB_URL = "https://github.com/Effanuel/lightweight-plugins/tree/master/
 const SHORTCUTS: [string, string][] = [
   ["Delete / Backspace", "delete the selection"],
   ["Escape", "cancel, disarm, deselect"],
-  ["Ctrl+Z", "undo"],
-  ["Ctrl+Shift+Z or Ctrl+Y", "redo"],
   ["Ctrl+C / Ctrl+V", "copy / paste"],
   ["Ctrl+drag", "marquee-select"],
   ["Alt+drag", "duplicate while dragging"],

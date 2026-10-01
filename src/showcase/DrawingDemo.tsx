@@ -2,7 +2,7 @@
 
 import { useEffect, useRef, useState, type ComponentType } from "react";
 import { CandlestickSeries, createChart } from "lightweight-charts";
-import { BoxSelect, Eye, EyeOff, Pencil, Redo2, Trash2, Undo2, X } from "lucide-react";
+import { BoxSelect, Eye, EyeOff, Pencil, Trash2, X } from "lucide-react";
 import { DrawingManager, type Drawing, type ToolName } from "@vecordis/lightweight-plugins";
 import { ChartOptions } from "@/components/Chart/chart-options";
 import { candleData } from "./sample-data";
@@ -98,12 +98,6 @@ export default function DrawingDemo() {
             </button>
           ))}
           <div className="mx-1 w-px shrink-0 bg-border md:mx-0 md:my-1 md:h-px md:w-auto" />
-          <button type="button" aria-label="Undo" title="Undo (Ctrl+Z)" onClick={() => manager?.undo()} className={button}>
-            <Undo2 className="h-5 w-5" />
-          </button>
-          <button type="button" aria-label="Redo" title="Redo (Ctrl+Shift+Z)" onClick={() => manager?.redo()} className={button}>
-            <Redo2 className="h-5 w-5" />
-          </button>
           <button
             type="button"
             aria-label={hidden ? "Show drawings" : "Hide drawings"}
@@ -113,7 +107,7 @@ export default function DrawingDemo() {
           >
             {hidden ? <EyeOff className="h-5 w-5" /> : <Eye className="h-5 w-5" />}
           </button>
-          <button type="button" aria-label="Clear all" title="Clear all (undoable)" onClick={() => manager?.clear()} className={button}>
+          <button type="button" aria-label="Clear all" title="Clear all" onClick={() => manager?.clear()} className={button}>
             <Trash2 className="h-5 w-5" />
           </button>
         </div>
