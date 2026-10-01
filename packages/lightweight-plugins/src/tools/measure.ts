@@ -1,6 +1,7 @@
 import type { ChartPlugin, ChartPluginContext, ClickResult, Teardown, ToolEnv } from "../harness/chart-plugin";
 import { MeasuringToolPrimitive } from "../primitives/MeasuringToolPrimitive";
-import { computeMeasurement, getChartPaneCoords, priceAtY, timeAtX, type MeasurePoint } from "../lib/chart-measure";
+import { createDrawingGeometry } from "../harness/drawing-gesture-geometry";
+import { computeMeasurement, type MeasurePoint } from "../lib/chart-measure";
 
 /**
  * Two-click measure: anchor, then end. The result stays until the next chart
@@ -34,15 +35,16 @@ export function createMeasureTool(env: ToolEnv): ChartPlugin {
     },
 
     onMount(ctx: ChartPluginContext): Teardown {
-      const { chart, series, container } = ctx;
+      const { chart, container } = ctx;
+      // The drawings' pane geometry: off-plot points are rejected, prices snap to the tick.
+      const geometry = createDrawingGeometry(ctx, env.tickSize, env.lockScroll);
       let anchor: MeasurePoint | null = null;
 
       const pointAt = (e: MouseEvent): MeasurePoint | null => {
-        const pos = getChartPaneCoords(e, container);
-        if (pos.x >= chart.timeScale().width()) return null;
-        const price = priceAtY(series, pos.y);
-        const time = timeAtX(chart, pos.x);
-        return price == null || time == null ? null : { price, time };
+        const pos = geometry.paneCoords(e);
+        if (!pos) return null;
+        const s = geometry.sampleAt(pos.x, pos.y);
+        return s?.rawPrice == null || s.time == null ? null : { price: s.rawPrice, time: s.time };
       };
 
       const onMouseDown = (e: MouseEvent) => {

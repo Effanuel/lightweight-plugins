@@ -66,6 +66,25 @@ describe("measure tool", () => {
     expect(primitive.measurement).toBeFalsy();
   });
 
+  test("a mousedown below the pane (over the time axis) starts no measurement", () => {
+    const { fire, primitive } = mount();
+    env.tools.setActiveTool("measure");
+    fire("container", "mousedown", mouse(10, 450)); // the pane is 400 tall
+    expect(env.lockScroll).not.toHaveBeenCalled();
+    fire("container", "mousedown", mouse(50, 80)); // so this is the first point, not the second
+    expect(primitive.measurement).toBeFalsy();
+    expect(env.tools.activeTool).toBe("measure");
+  });
+
+  test("measured prices snap to the tick size", () => {
+    const { fire, primitive } = mount();
+    env.tools.setActiveTool("measure");
+    fire("container", "mousedown", mouse(10, 100.004));
+    fire("container", "mousedown", mouse(50, 80.006));
+    const m = primitive.measurement as { start: { price: number }; end: { price: number } };
+    expect([m.start.price, m.end.price]).toEqual([100, 80.01]);
+  });
+
   test("a finished measurement survives the automatic disarm", () => {
     const { fire, primitive } = mount();
     env.tools.setActiveTool("measure");
