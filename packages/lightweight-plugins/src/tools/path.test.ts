@@ -35,3 +35,18 @@ describe("path creation", () => {
   });
 });
 
+describe("path tool switch", () => {
+  test("switching tool while building cancels the build", () => {
+    const { fire, teardown } = mount();
+    fire("container", "mousedown", mouse(10, 20));
+    fire("container", "mousedown", mouse(40, 50));
+    env.tools.setActiveTool("trend");
+
+    env.tools.setActiveTool("path");
+    // a stale build would finalize here (repeat click on the last point)
+    fire("container", "mousedown", mouse(40, 50));
+    expect(env.drawings.items("path")).toHaveLength(0);
+    expect(env.tools.activeTool).toBe("path");
+    teardown();
+  });
+});

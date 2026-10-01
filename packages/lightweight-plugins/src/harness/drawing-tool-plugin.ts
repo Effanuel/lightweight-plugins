@@ -264,12 +264,28 @@ export function createDrawingToolPlugin<T extends { id: number; style: TStyle },
         geometry.lockScroll(false);
       };
 
-      const cancelCreation = () => {
+      // Drops any in-progress creation (preview, anchor, scroll lock) without disarming.
+      const cancelInProgress = () => {
         if (creation.mode === "one-click") creation.clearPreview?.();
         if (creation.mode === "two-click") clearAnchor();
         if (creation.mode === "custom") creation.cancel();
-        disarm();
       };
+
+      let cancelling = false;
+      const cancelCreation = () => {
+        cancelInProgress();
+        cancelling = true; // disarm notifies the subscription below; don't cancel twice
+        try {
+          disarm();
+        } finally {
+          cancelling = false;
+        }
+      };
+
+      // Another tool was armed (or none) from outside: abandon what this tool had started.
+      const unsubTool = env.tools.subscribe((tool) => {
+        if (tool !== config.tool && !cancelling) cancelInProgress();
+      });
 
       const finishCreate = (item: T | null) => {
         if (!item) return;
@@ -397,10 +413,7 @@ export function createDrawingToolPlugin<T extends { id: number; style: TStyle },
               ? creation.hasPending?.() ?? false
               : false;
           if (pending) cancelCreation();
-          else if (creation.mode === "one-click" && isArmed()) {
-            creation.clearPreview?.();
-            disarm();
-          }
+          else if (creation.mode === "one-click" && isArmed()) disarm(); // the tool subscription clears the preview
           select(null);
         }
         if (e.key === "Delete" || e.key === "Backspace") {
@@ -456,6 +469,7 @@ export function createDrawingToolPlugin<T extends { id: number; style: TStyle },
         paneTop = () => 0;
         mounted = false;
         mountCleanup?.();
+        unsubTool();
         unsubDrawings();
         container.removeEventListener("mousedown", onMouseDown);
         container.removeEventListener("mousemove", onContainerMouseMove);

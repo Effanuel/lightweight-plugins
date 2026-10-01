@@ -22,7 +22,7 @@ function mount() {
   const plugin = createMeasureTool(env);
   const teardown = plugin.onMount!(ctx);
   const primitive = plugin.primitives()[0] as unknown as { measurement: unknown };
-  return { plugin, ctx, fire, teardown, primitive };
+  return { plugin, ctx, fire, teardown, primitive, chart };
 }
 
 describe("measure tool", () => {
@@ -55,5 +55,23 @@ describe("measure tool", () => {
     fire("container", "mousedown", mouse(10, 100));
     fire("document", "keydown", { key: "Escape" });
     expect(env.tools.activeTool).toBeNull();
+  });
+
+  test("switching tool after the first click releases the scroll lock and clears the pending measurement", () => {
+    const { fire, primitive, chart } = mount();
+    env.tools.setActiveTool("measure");
+    fire("container", "mousedown", mouse(10, 100));
+    expect(chart.applyOptions).toHaveBeenLastCalledWith({ handleScroll: false, handleScale: false });
+    env.tools.setActiveTool("trend");
+    expect(chart.applyOptions).toHaveBeenLastCalledWith({ handleScroll: true, handleScale: true });
+    expect(primitive.measurement).toBeFalsy();
+  });
+
+  test("a finished measurement survives the automatic disarm", () => {
+    const { fire, primitive } = mount();
+    env.tools.setActiveTool("measure");
+    fire("container", "mousedown", mouse(10, 100));
+    fire("container", "mousedown", mouse(50, 80));
+    expect(primitive.measurement).toBeTruthy();
   });
 });

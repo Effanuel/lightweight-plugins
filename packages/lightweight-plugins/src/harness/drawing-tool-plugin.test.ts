@@ -277,6 +277,26 @@ describe("drawing-tool plugin — two-click creation", () => {
     expect(api.getSelected()?.id).toBe(items[0].id);
   });
 
+  test("switching tool mid two-click creation drops the anchor and releases the scroll lock", () => {
+    env.tools.setActiveTool("box");
+    const { dom, geometry, clearPreview } = twoClick();
+
+    dom.fire("container", "mousedown", mouse(10, 20));
+    expect(geometry.lockScroll).toHaveBeenLastCalledWith(true);
+    env.tools.setActiveTool("trend");
+
+    expect(geometry.lockScroll).toHaveBeenLastCalledWith(false);
+    expect(clearPreview).toHaveBeenCalled();
+
+    // the stale anchor is gone: the next two clicks use the NEW first click
+    env.tools.setActiveTool("box");
+    dom.fire("container", "mousedown", mouse(50, 60));
+    dom.fire("container", "mousedown", mouse(70, 80));
+    const items = env.drawings.items("box");
+    expect(items).toHaveLength(1);
+    expect(items[0].p1).toEqual({ price: 60, time: 500 });
+  });
+
   test("Escape while anchored cancels the creation and disarms the tool", () => {
     env.tools.setActiveTool("box");
     const { dom, geometry, clearPreview } = twoClick();

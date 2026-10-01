@@ -91,6 +91,11 @@ export function createMeasureTool(env: ToolEnv): ChartPlugin {
         cancel();
       };
 
+      // Another tool was armed (or none) mid-measurement: abandon it. A finished measurement has no anchor, so it stays.
+      const unsubTool = env.tools.subscribe((tool) => {
+        if (tool !== "measure" && anchor) cancel(false);
+      });
+
       const doc = container.ownerDocument;
       container.addEventListener("mousedown", onMouseDown);
       container.addEventListener("mousemove", onMouseMove);
@@ -99,6 +104,7 @@ export function createMeasureTool(env: ToolEnv): ChartPlugin {
 
       return () => {
         cancel(false);
+        unsubTool();
         container.removeEventListener("mousedown", onMouseDown);
         container.removeEventListener("mousemove", onMouseMove);
         container.removeEventListener("contextmenu", onContextMenu);
