@@ -63,7 +63,10 @@ No code changes expected.
 - Upgrade `typescript` to the newest 6.0.x, and `@types/node` to latest (26.x).
 - Delete `.eslintrc.json`. Add a flat `eslint.config.mjs` using
   eslint-config-next's `core-web-vitals` and `typescript` presets, ignoring
-  `.next/`, `.claude/`, `node_modules/` and `next-env.d.ts`.
+  `.next/`, `.claude/`, `node_modules/` and `next-env.d.ts`. It also ignores
+  the code copied verbatim from upstream: the plugin dirs,
+  `src/plugins/plugin-base.ts` and `src/helpers/`. That code stays verbatim,
+  so its lint findings are not ours to fix.
 - Change the `package.json` `lint` script from `next lint` to `eslint .`
   (Next 16 removed `next lint`, and `next build` no longer lints).
 - Fix the existing type errors in `src/app/orderflow/page.tsx`. `chartDiv`
@@ -153,10 +156,14 @@ select opening, scrolling, and changing the symbol when an option is chosen.
   - For each page, it checks that every chart `<canvas>` has non-blank pixels.
   - It collects console errors.
   - It saves screenshots for the user.
-- **Network.** `/` and `/cvd` need live MEXC REST and websocket access. If the
-  sandbox blocks the network, report that. The check then becomes "page
-  loads, chart canvas mounts, no console errors except network". `/orderflow`
-  uses local sample data and must fully render.
+- **Network.** MEXC is blocked on the dev network: TLS to
+  `contract.mexc.com` returns a `*.nksc.lt` certificate. The check therefore
+  mocks the app's own `/api/mexc/symbols` and `/api/mexc/candles` routes in
+  the browser, so `/` renders real candles, and it ignores only the MEXC
+  websocket errors.
+  - `/cvd` uses the live Binance stream, which is reachable.
+  - `/orderflow` uses local sample data.
+  - A baseline run on v4, after Stage 2, gives the v5 runs a comparison.
 
 ## Scope guard
 
