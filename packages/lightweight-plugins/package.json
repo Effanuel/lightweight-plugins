@@ -2,7 +2,12 @@
   "name": "@vecordis/lightweight-plugins",
   "version": "0.1.0",
   "description": "Plugins for TradingView lightweight-charts v5",
-  "keywords": ["lightweight-charts", "tradingview", "charts", "plugins"],
+  "keywords": [
+    "lightweight-charts",
+    "tradingview",
+    "charts",
+    "plugins"
+  ],
   "license": "Apache-2.0",
   "type": "module",
   "sideEffects": false,
@@ -15,7 +20,10 @@
     },
     "./package.json": "./package.json"
   },
-  "files": ["dist", "NOTICE"],
+  "files": [
+    "dist",
+    "NOTICE"
+  ],
   "repository": {
     "type": "git",
     "url": "git+https://github.com/Effanuel/lightweight-plugins.git",
@@ -26,7 +34,7 @@
   },
   "scripts": {
     "build": "tsup",
-    "test": "node test/smoke.mjs",
+    "test": "vitest run && node test/smoke.mjs",
     "prepublishOnly": "pnpm build && pnpm test"
   },
   "peerDependencies": {
@@ -36,8 +44,11 @@
     "fancy-canvas": "~2.1.0"
   },
   "devDependencies": {
+    "jsdom": "^30.1.1",
     "lightweight-charts": "^5.2.1",
     "tsup": "^8.5.1",
-    "typescript": "~6.0.3"
+    "typescript": "~6.0.3",
+    "vite": "^8.3.2",
+    "vitest": "^5.0.3"
   }
 }
