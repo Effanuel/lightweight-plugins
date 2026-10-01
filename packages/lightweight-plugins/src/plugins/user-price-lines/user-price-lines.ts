@@ -15,7 +15,12 @@ import { positionsBox, positionsLine } from '../../helpers/dimensions/positions'
 
 const LABEL_HEIGHT = 21;
 const plusIcon = `M7.5,7.5 m -7,0 a 7,7 0 1,0 14,0 a 7,7 0 1,0 -14,0 M4 7.5H11 M7.5 4V11`;
-const plusIconPath = new Path2D(plusIcon);
+// Modified from TradingView upstream (Effanuel): Path2D is created on first draw instead of at
+// import time, so the module can be imported without a DOM (SSR, Node).
+let plusIconPath: Path2D | undefined;
+function getPlusIconPath(): Path2D {
+	return (plusIconPath ??= new Path2D(plusIcon));
+}
 const plusIconSize = 15; // Icon is 15x15
 
 class UserPriceLineDataBase {
@@ -82,7 +87,7 @@ class UserPriceLinesPaneRenderer implements IPrimitivePaneRenderer {
 			ctx.scale(iconScaling, iconScaling);
 			ctx.strokeStyle = this._data.textColor;
 			ctx.lineWidth = 1;
-			ctx.stroke(plusIconPath);
+			ctx.stroke(getPlusIconPath());
 		});
 	}
 }

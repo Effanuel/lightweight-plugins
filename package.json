@@ -9,7 +9,8 @@
     "dev": "next dev --turbopack",
     "build": "next build",
     "start": "next start",
-    "lint": "eslint ."
+    "lint": "eslint .",
+    "build:plugins": "pnpm -F @effanuel/lightweight-plugins build"
   },
   "dependencies": {
     "@hookform/resolvers": "^5.9.1",

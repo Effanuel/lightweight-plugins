@@ -1,0 +1,40 @@
+{
+  "name": "@effanuel/lightweight-plugins",
+  "version": "0.1.0",
+  "description": "Plugins for TradingView lightweight-charts v5",
+  "keywords": ["lightweight-charts", "tradingview", "charts", "plugins"],
+  "license": "Apache-2.0",
+  "type": "module",
+  "sideEffects": false,
+  "exports": {
+    ".": {
+      "types": "./dist/index.d.ts",
+      "default": "./dist/index.js"
+    }
+  },
+  "files": ["dist", "NOTICE"],
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/Effanuel/lightweight-plugins.git",
+    "directory": "packages/lightweight-plugins"
+  },
+  "publishConfig": {
+    "access": "public"
+  },
+  "scripts": {
+    "build": "tsup",
+    "test": "node test/smoke.mjs",
+    "prepublishOnly": "pnpm build"
+  },
+  "peerDependencies": {
+    "lightweight-charts": "^5.0.0"
+  },
+  "dependencies": {
+    "fancy-canvas": "~2.1.0"
+  },
+  "devDependencies": {
+    "lightweight-charts": "^5.2.1",
+    "tsup": "^8.5.1",
+    "typescript": "~6.0.3"
+  }
+}

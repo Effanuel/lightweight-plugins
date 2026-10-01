@@ -1,0 +1,32 @@
+// Smoke check for the built package. Run `pnpm build` first, then `pnpm test`.
+import assert from 'node:assert/strict';
+import { readFileSync } from 'node:fs';
+
+const EXPECTED = [
+	'AnchoredText',
+	'BackgroundShadeSeries',
+	'BandsIndicator',
+	'CrosshairHighlightPrimitive',
+	'GroupedBarsSeries',
+	'HeatMapSeries',
+	'LollipopSeries',
+	'OverlayPriceScale',
+	'PartialPriceLine',
+	'SessionHighlighting',
+	'TrendLine',
+	'UserPriceLines',
+	'VolumeProfile',
+	'WhiskerBoxSeries',
+];
+
+// Imports in plain Node with no DOM, as SSR and test runners do.
+const mod = await import('../dist/index.js');
+assert.deepEqual(Object.keys(mod).sort(), [...EXPECTED].sort(), 'runtime exports');
+for (const name of EXPECTED) assert.equal(typeof mod[name], 'function', name);
+
+// lightweight-charts must stay external, or consumers get a second copy of the library.
+const bundle = readFileSync(new URL('../dist/index.js', import.meta.url), 'utf8');
+assert.match(bundle, /from "lightweight-charts"/, 'imports lightweight-charts');
+assert.doesNotMatch(bundle, /Lightweight Charts™/, 'does not bundle lightweight-charts');
+
+console.log(`smoke ok: ${EXPECTED.length} exports, lightweight-charts external`);
