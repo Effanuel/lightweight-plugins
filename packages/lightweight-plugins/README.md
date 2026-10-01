@@ -45,7 +45,7 @@ Tools: `'select' | 'h-line' | 'h-ray' | 'v-line' | 'trend' | 'box' | 'fibonacci'
 | `new DrawingManager(chart, series, { tickSize?, keyboard? })` | `tickSize` defaults to the series' `priceFormat.minMove`; `keyboard` (default `true`) enables the shortcuts below |
 | `setTool(tool \| null)`, `getTool()` | arm / disarm a tool |
 | `getDrawings()`, `setDrawings(list)` | serializable drawings (`{ kind, id, …, style }`); `setDrawings` replaces all, clears undo history, and throws, changing nothing, on an unknown kind, a bad/duplicate id or malformed fields |
-| `clear()`, `setHidden(b)`, `isHidden()` | clear all (undoable), hide/show |
+| `clear()`, `setHidden(b)`, `isHidden()` | clear all (undoable; also unhides), hide/show |
 | `getSelection()`, `setStyle(patch)`, `deleteSelected()` | style keys are `color width pattern opacity` for lines, `borderColor borderWidth borderOpacity bgColor bgOpacity` for boxes |
 | `setToolStyle(tool, patch)` | style for that tool's next drawings |
 | `undo()`, `redo()`, `copy()`, `paste()` | |

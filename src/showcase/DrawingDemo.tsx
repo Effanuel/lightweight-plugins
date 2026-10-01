@@ -53,7 +53,11 @@ export default function DrawingDemo() {
     const offs = [
       m.on("toolChange", setTool),
       m.on("selectionChange", setSelection),
-      m.on("change", () => setSelection(m.getSelection())),
+      // clear() also unhides, so read the hidden flag back on every change.
+      m.on("change", () => {
+        setSelection(m.getSelection());
+        setHidden(m.isHidden());
+      }),
     ];
     window.drawings = m;
     setManager(m);
