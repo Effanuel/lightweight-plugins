@@ -1,6 +1,6 @@
 import type { ChartPluginContext } from "./chart-plugin";
 import type { ChartGeometry } from "./chart-gesture";
-import { priceAtY, snapToTick, timeAtX } from "../lib/chart-measure";
+import { priceAtY, snapToTick, softMagnetPriceAtY, timeAtX } from "../lib/chart-measure";
 
 /**
  * The sample a drawing-tool drag carries. Fields are individually nullable and
@@ -35,9 +35,14 @@ export function createDrawingGeometry(
       return { x, y };
     },
     sampleAt(x: number, y: number) {
-      const raw = priceAtY(series, y);
-      const price = raw == null ? null : snapToTick(raw, tickSize());
-      return { x, y, time: timeAtX(chart, x), rawPrice: price, magnetPrice: price };
+      const snap = (p: number | null) => (p == null ? null : snapToTick(p, tickSize()));
+      return {
+        x,
+        y,
+        time: timeAtX(chart, x),
+        rawPrice: snap(priceAtY(series, y)),
+        magnetPrice: snap(softMagnetPriceAtY(chart, series, x, y)),
+      };
     },
     lockScroll,
   };

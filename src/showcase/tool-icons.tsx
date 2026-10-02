@@ -107,3 +107,17 @@ export function VLineIcon({ className }: Props) {
     </svg>
   );
 }
+
+export function MagnetIcon({ className }: Props) {
+  return (
+    <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 28 28" className={className}>
+      <g fill="currentColor" fillRule="evenodd">
+        <path
+          fillRule="nonzero"
+          d="M14 10a2 2 0 0 0-2 2v11H6V12c0-4.416 3.584-8 8-8s8 3.584 8 8v11h-6V12a2 2 0 0 0-2-2zm-3 2a3 3 0 0 1 6 0v10h4V12c0-3.864-3.136-7-7-7s-7 3.136-7 7v10h4V12z"
+        />
+        <path d="M6.5 18h5v1h-5zm10 0h5v1h-5z" />
+      </g>
+    </svg>
+  );
+}

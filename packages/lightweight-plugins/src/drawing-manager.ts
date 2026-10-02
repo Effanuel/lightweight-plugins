@@ -2,8 +2,9 @@ import type { ChartOptions, IChartApi, ISeriesApi, MouseEventParams, SeriesType,
 import type { ChartPlugin, ChartPluginContext, ToolEnv } from "./harness/chart-plugin";
 import { createDrawingToolPlugin, type DrawingToolApi } from "./harness/drawing-tool-plugin";
 import { createHoverArbiter } from "./harness/drawing-hover";
-import { registerChartEnv } from "./lib/chart-measure";
+import { magnetSnap, registerChartEnv, timeAtX, type Bar } from "./lib/chart-measure";
 import type { DrawingStyle } from "./lib/drawing-style";
+import type { FibLevel } from "./lib/fib-levels";
 import { DRAWING_KINDS, emptyBucket, type BoxStyle, type DrawingDataMap, type DrawingKind } from "./model";
 import { DrawingStore } from "./store/drawing-store";
 import { ToolState, type StyleSlot, type ToolName } from "./store/tool-state";
@@ -55,6 +56,8 @@ export type DrawingManagerOptions = {
   tickSize?: number;
   /** Delete, Escape and copy/paste shortcuts. Default true. */
   keyboard?: boolean;
+  /** Soft magnet: snap drawing points and the crosshair to a bar's OHLC within 8px. Default false. */
+  magnet?: boolean;
 };
 
 type Events = {
@@ -66,7 +69,10 @@ type Events = {
 const DRAWING_STYLE_KEYS = ["width", "color", "pattern", "opacity"] as const;
 const BOX_STYLE_KEYS = ["borderColor", "borderWidth", "borderOpacity", "bgColor", "bgOpacity"] as const;
 
-const STYLE_SLOT: Record<Exclude<ToolName, "select" | "measure" | "box">, StyleSlot> = {
+/** The tools that make drawings. */
+export type DrawingToolName = Exclude<ToolName, "select" | "measure" | "measure-pct">;
+
+const STYLE_SLOT: Record<Exclude<DrawingToolName, "box">, StyleSlot> = {
   "h-line": "h-line",
   "h-ray": "h-ray",
   "v-line": "v-line",
@@ -79,9 +85,13 @@ const STYLE_SLOT: Record<Exclude<ToolName, "select" | "measure" | "box">, StyleS
 // The manager whose chart last received a mousedown owns keyboard shortcuts.
 let activeManager: symbol | null = null;
 
-function readBars(series: ISeriesApi<SeriesType>): { time: number }[] {
-  const bars: { time: number }[] = [];
-  for (const item of series.data()) if (typeof item.time === "number") bars.push({ time: item.time });
+function readBars(series: ISeriesApi<SeriesType>): Bar[] {
+  const bars: Bar[] = [];
+  for (const item of series.data()) {
+    if (typeof item.time !== "number") continue;
+    const { open, high, low, close, value } = item as Omit<Bar, "time">;
+    bars.push({ time: item.time, open, high, low, close, value });
+  }
   return bars;
 }
 
@@ -159,9 +169,11 @@ export class DrawingManager {
   private readonly marquee: MarqueeTool;
   private readonly listeners = new Map<keyof Events, Set<(...args: never[]) => void>>();
   private readonly teardown: () => void;
+  private magnet: boolean;
 
   constructor(chart: IChartApi, series: ISeriesApi<SeriesType>, options: DrawingManagerOptions = {}) {
     const keyboard = options.keyboard ?? true;
+    this.magnet = options.magnet ?? false;
     const tickSize = () => options.tickSize ?? seriesMinMove(series);
 
     let bars = readBars(series);
@@ -169,7 +181,7 @@ export class DrawingManager {
       bars = readBars(series);
     };
     series.subscribeDataChanged(onData);
-    const unregister = registerChartEnv(chart, { getBars: () => bars, tickSize });
+    const unregister = registerChartEnv(chart, { getBars: () => bars, tickSize, magnet: () => this.magnet });
 
     const self = Symbol("drawing-manager"); // identity token for the active-manager check
     // The chart's own scroll/scale options while a gesture holds the lock, else null.
@@ -217,7 +229,12 @@ export class DrawingManager {
     this.marquee = createMarqueeTool(env, prims);
 
     // Marquee first: its listeners must run before the tools' (it stops propagation).
-    const plugins: ChartPlugin[] = [this.marquee.plugin, ...this.apis.map((a) => a.api.plugin), createMeasureTool(env)];
+    const plugins: ChartPlugin[] = [
+      this.marquee.plugin,
+      ...this.apis.map((a) => a.api.plugin),
+      createMeasureTool(env, "measure"),
+      createMeasureTool(env, "measure-pct"),
+    ];
 
     const container = chart.chartElement();
     const ctx: ChartPluginContext = {
@@ -246,6 +263,17 @@ export class DrawingManager {
       for (const plugin of byPriority) if (plugin.onChartClick!(param, ctx) === "consumed") break;
     };
     chart.subscribeClick(onClick);
+
+    // The magnet moves the crosshair onto the level a click would snap to.
+    const onCrosshairMove = (param: MouseEventParams<Time>) => {
+      // Pointer moves only: lightweight-charts replays the crosshair, with no sourceEvent, on every data update.
+      if (!param.sourceEvent || !param.point) return;
+      if (param.paneIndex !== undefined && param.paneIndex !== series.getPane().paneIndex()) return;
+      const price = magnetSnap(chart, series, param.point.x, param.point.y);
+      const time = param.time ?? (timeAtX(chart, param.point.x) as Time | null);
+      if (price != null && time != null) chart.setCrosshairPosition(price, time, series);
+    };
+    chart.subscribeCrosshairMove(onCrosshairMove);
 
     const activate = () => {
       activeManager = self;
@@ -286,6 +314,7 @@ export class DrawingManager {
       container.removeEventListener("mousedown", activate, true);
       if (activeManager === self) activeManager = null;
       chart.unsubscribeClick(onClick);
+      chart.unsubscribeCrosshairMove(onCrosshairMove);
       for (const td of teardowns) td();
       for (const plugin of plugins) for (const prim of plugin.primitives()) series.detachPrimitive(prim);
       unregister();
@@ -358,10 +387,43 @@ export class DrawingManager {
     }
   }
 
-  /** The style a tool's next drawings get. */
-  setToolStyle(tool: Exclude<ToolName, "select" | "measure">, patch: Partial<DrawingStyle> | Partial<BoxStyle>): void {
-    if (tool === "box") this.tools.setLastUsedBoxStyle(patch as Partial<BoxStyle>);
-    else this.tools.setLastUsedStyle(STYLE_SLOT[tool], patch as Partial<DrawingStyle>);
+  /** The style a tool's next drawings get; the tool takes only the keys its style type has. */
+  setToolStyle(tool: DrawingToolName, patch: Partial<DrawingStyle & BoxStyle>): void {
+    if (tool === "box") this.tools.setLastUsedBoxStyle(pick<BoxStyle>(patch, BOX_STYLE_KEYS));
+    else this.tools.setLastUsedStyle(STYLE_SLOT[tool], pick<DrawingStyle>(patch, DRAWING_STYLE_KEYS));
+  }
+
+  /** Sets the selected fibs' levels; new fibs get them too. Throws, changing nothing, on invalid levels. */
+  setFibLevels(levels: readonly FibLevel[]): void {
+    const problem = levelsProblem(levels);
+    if (problem) throw new Error(`Invalid fib levels: ${problem}`);
+    const copy = structuredClone(levels) as FibLevel[];
+    this.tools.setFibLevels(copy);
+    const ids = this.selectedIds().get("fib")!;
+    for (const item of this.drawings.items("fib")) if (ids.has(item.id)) this.drawings.update("fib", item.id, { levels: copy });
+  }
+
+  /** Snap drawing points and the crosshair to the hovered bar's OHLC within 8px. */
+  setMagnet(on: boolean): void {
+    this.magnet = on;
+  }
+
+  getMagnet(): boolean {
+    return this.magnet;
+  }
+
+  /**
+   * Y of the clicked-to-select drawing, in px from the top of `chart.chartElement()`, as it was
+   * when selected: where to anchor a settings popup. Null for no selection or a marquee selection.
+   */
+  getSelectionY(): number | null {
+    const marquee = this.marquee.selection();
+    if (DRAWING_KINDS.some((k) => marquee[k].size > 0)) return null;
+    for (const { api } of this.apis) {
+      const single = api.getSelected();
+      if (single) return single.y;
+    }
+    return null;
   }
 
   /** Removes everything getSelection reports. */

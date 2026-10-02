@@ -28,7 +28,9 @@ function expandScrollScale(patch: Opts): Opts {
  * A fake chart whose single pane is an 800×400 element at the page origin.
  * x maps to logical index x (bars every 10s from time 0), y maps to price y.
  */
-function fakeChart(opts: { minMove?: number; data?: { time: number }[]; options?: Record<string, unknown> } = {}) {
+type Bar = { time: number; open?: number; high?: number; low?: number; close?: number };
+
+function fakeChart(opts: { minMove?: number; data?: Bar[]; options?: Record<string, unknown> } = {}) {
   const container = document.createElement("div");
   const pane = document.createElement("div");
   container.appendChild(pane);
@@ -39,6 +41,7 @@ function fakeChart(opts: { minMove?: number; data?: { time: number }[]; options?
   let data = opts.data ?? Array.from({ length: 100 }, (_, i) => ({ time: i * 10 }));
   const dataListeners = new Set<() => void>();
   const clickListeners = new Set<(p: unknown) => void>();
+  const crosshairListeners = new Set<(p: unknown) => void>();
   const attached: ISeriesPrimitive<Time>[] = [];
   // Like lightweight-charts: options() hands out the live object, and applyOptions
   // expands a boolean handleScroll/handleScale into per-input flags merged into it in place.
@@ -59,11 +62,15 @@ function fakeChart(opts: { minMove?: number; data?: { time: number }[]; options?
     }),
     subscribeClick: (fn: (p: unknown) => void) => clickListeners.add(fn),
     unsubscribeClick: (fn: (p: unknown) => void) => clickListeners.delete(fn),
+    subscribeCrosshairMove: (fn: (p: unknown) => void) => crosshairListeners.add(fn),
+    unsubscribeCrosshairMove: (fn: (p: unknown) => void) => crosshairListeners.delete(fn),
+    setCrosshairPosition: vi.fn(),
   } as unknown as IChartApi;
 
   const series = {
     options: () => ({ priceFormat: { type: "price", minMove: opts.minMove ?? 0.01 } }),
     data: () => data,
+    getPane: () => ({ paneIndex: () => 0 }),
     subscribeDataChanged: (fn: () => void) => dataListeners.add(fn),
     unsubscribeDataChanged: (fn: () => void) => dataListeners.delete(fn),
     priceToCoordinate: (p: number) => p,
@@ -79,11 +86,14 @@ function fakeChart(opts: { minMove?: number; data?: { time: number }[]; options?
     },
   } as unknown as ISeriesApi<SeriesType>;
 
-  const setData = (next: { time: number }[]) => {
+  const setData = (next: Bar[]) => {
     data = next;
     for (const fn of [...dataListeners]) fn();
   };
-  return { chart, series, container, pane, attached, clickListeners, setData };
+  const moveCrosshair = (p: unknown) => {
+    for (const fn of [...crosshairListeners]) fn(p);
+  };
+  return { chart, series, container, pane, attached, clickListeners, crosshairListeners, setData, moveCrosshair };
 }
 
 const fire = (el: EventTarget, type: string, init: MouseEventInit & KeyboardEventInit = {}) =>
@@ -292,6 +302,106 @@ describe("DrawingManager", () => {
     const valid = fib([{ value: 0, visible: true }, { value: 1.618, visible: false, color: "#ff0000" }]);
     m.setDrawings([valid]);
     expect(m.getDrawings()).toEqual([valid]);
+  });
+
+  test("magnet: new drawings snap to the hovered bar's OHLC within 8px, only while on", () => {
+    const data = Array.from({ length: 100 }, (_, i) => ({ time: i * 10, open: 100, high: 120, low: 90, close: 110 }));
+    const f = fakeChart({ data });
+    const m = make(f.chart, f.series);
+    expect(m.getMagnet()).toBe(false);
+    m.setTool("h-line");
+    fire(f.pane, "mousedown", { clientX: 30, clientY: 113 });
+    m.setMagnet(true);
+    expect(m.getMagnet()).toBe(true);
+    m.setTool("h-line");
+    fire(f.pane, "mousedown", { clientX: 30, clientY: 113 }); // close 110 is 3px away
+    m.setTool("h-line");
+    fire(f.pane, "mousedown", { clientX: 30, clientY: 150 }); // nothing within 8px
+    expect(m.getDrawings().map((d) => (d as { price: number }).price)).toEqual([113, 110, 150]);
+  });
+
+  test("magnet option and crosshair: pointer moves snap the crosshair, replays and other panes do not", () => {
+    const data = Array.from({ length: 100 }, (_, i) => ({ time: i * 10, open: 100, high: 120, low: 90, close: 110 }));
+    const f = fakeChart({ data });
+    const m = make(f.chart, f.series, { magnet: true });
+    const at = (y: number, extra: object = {}) => ({ sourceEvent: {}, point: { x: 30, y }, time: 300, paneIndex: 0, ...extra });
+    f.moveCrosshair(at(113));
+    expect(f.chart.setCrosshairPosition).toHaveBeenLastCalledWith(110, 300, f.series);
+    f.moveCrosshair(at(150)); // out of reach
+    f.moveCrosshair(at(113, { sourceEvent: undefined })); // a replay after setData
+    f.moveCrosshair(at(113, { paneIndex: 1 })); // another pane
+    m.setMagnet(false);
+    f.moveCrosshair(at(113));
+    expect(f.chart.setCrosshairPosition).toHaveBeenCalledTimes(1);
+  });
+
+  test("measure-pct: two clicks measure and disarm without storing anything", () => {
+    const f = fakeChart();
+    const m = make(f.chart, f.series);
+    m.setTool("measure-pct");
+    fire(f.pane, "mousedown", { clientX: 10, clientY: 100 });
+    fire(f.pane, "mousedown", { clientX: 50, clientY: 80 });
+    expect(m.getTool()).toBeNull();
+    expect(m.getDrawings()).toEqual([]);
+  });
+
+  test("getSelectionY: the single selection's chart-element y, else null", async () => {
+    const f = fakeChart();
+    const m = make(f.chart, f.series);
+    m.setDrawings([hline(1, 50)]);
+    expect(m.getSelectionY()).toBeNull();
+    fire(f.pane, "mousemove", { clientX: 100, clientY: 50 });
+    await flush();
+    fire(f.pane, "mousedown", { clientX: 100, clientY: 50 });
+    fire(window, "mouseup", { clientX: 100, clientY: 50 });
+    expect(m.getSelectionY()).toBe(50);
+    m.deleteSelected();
+    expect(m.getSelectionY()).toBeNull();
+    m.setDrawings([hline(1, 50)]);
+    m.setTool("v-line");
+    fire(f.pane, "mousedown", { clientX: 30, clientY: 200 }); // creates and singly selects a v-line
+    expect(m.getSelectionY()).toBe(200);
+    fire(f.pane, "mousedown", { clientX: 0, clientY: 40, ctrlKey: true });
+    fire(window, "mouseup", { clientX: 20, clientY: 60, ctrlKey: true });
+    expect(m.getSelection()).toHaveLength(2);
+    expect(m.getSelectionY()).toBeNull();
+  });
+
+  test("setFibLevels: sets the selected fib's levels and the next fib's; invalid levels throw and change nothing", () => {
+    const f = fakeChart();
+    const m = make(f.chart, f.series);
+    const levels = [
+      { value: 0, visible: true },
+      { value: 2, visible: false, color: "#ff0000" },
+    ];
+    m.setTool("fibonacci");
+    fire(f.pane, "mousedown", { clientX: 10, clientY: 100 });
+    fire(f.pane, "mousedown", { clientX: 50, clientY: 200 });
+    expect(m.getSelection().map((d) => d.kind)).toEqual(["fibonacci"]);
+    expect(() => m.setFibLevels([{ value: Number.NaN, visible: true }])).toThrow(/levels\[0\]/);
+    const before = m.getDrawings();
+    m.setFibLevels(levels);
+    expect(m.getDrawings()[0]).toEqual({ ...before[0], levels });
+    m.setTool("fibonacci");
+    fire(f.pane, "mousedown", { clientX: 60, clientY: 100 });
+    fire(f.pane, "mousedown", { clientX: 70, clientY: 200 });
+    expect(m.getDrawings()[1]).toMatchObject({ kind: "fibonacci", levels });
+  });
+
+  test("setToolStyle keeps only the keys the tool's style has", () => {
+    const f = fakeChart();
+    const m = make(f.chart, f.series);
+    m.setToolStyle("box", { color: "#ff0000", borderColor: "#00ff00" });
+    m.setToolStyle("h-line", { color: "#ff0000", borderColor: "#00ff00" });
+    m.setTool("box");
+    fire(f.pane, "mousedown", { clientX: 10, clientY: 100 });
+    fire(f.pane, "mousedown", { clientX: 50, clientY: 200 });
+    m.setTool("h-line");
+    fire(f.pane, "mousedown", { clientX: 60, clientY: 300 });
+    const [box, line] = m.getDrawings();
+    expect(box.style).not.toHaveProperty("color");
+    expect(box.style).toMatchObject({ borderColor: "#00ff00" });
+    expect(line.style).toEqual({ ...STYLE, color: "#ff0000" });
   });
 
   test("scroll lock restores the chart's own handleScroll/handleScale on unlock", () => {

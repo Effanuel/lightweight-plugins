@@ -3,7 +3,7 @@ import { DEFAULT_FIB_LEVELS, type FibLevel } from "../lib/fib-levels";
 import { DEFAULT_BOX_STYLE, type BoxStyle } from "../model";
 
 export type ToolName =
-  | "select" | "h-line" | "h-ray" | "v-line" | "trend" | "box" | "fibonacci" | "path" | "free-draw" | "measure";
+  | "select" | "h-line" | "h-ray" | "v-line" | "trend" | "box" | "fibonacci" | "path" | "free-draw" | "measure" | "measure-pct";
 
 /** Last-used style slots. Free draw shares "path"'s slot, as in terminal; box has its own BoxStyle. */
 export type StyleSlot = "h-line" | "h-ray" | "v-line" | "trend" | "fibonacci" | "path";
@@ -18,7 +18,7 @@ export class ToolState {
     DrawingStyle
   >;
   private boxStyle: BoxStyle = { ...DEFAULT_BOX_STYLE };
-  readonly fibLevels: FibLevel[] = DEFAULT_FIB_LEVELS;
+  private levels: FibLevel[] = DEFAULT_FIB_LEVELS;
   private readonly listeners = new Set<(tool: ToolName | null) => void>();
 
   get activeTool(): ToolName | null {
@@ -49,6 +49,15 @@ export class ToolState {
 
   setLastUsedBoxStyle(patch: Partial<BoxStyle>): void {
     this.boxStyle = { ...this.boxStyle, ...patch };
+  }
+
+  /** The levels new fibs get. */
+  get fibLevels(): FibLevel[] {
+    return this.levels;
+  }
+
+  setFibLevels(levels: FibLevel[]): void {
+    this.levels = levels;
   }
 
   subscribe(listener: (tool: ToolName | null) => void): () => void {

@@ -1,5 +1,5 @@
 export { DrawingManager } from "./drawing-manager";
-export type { Drawing, DrawingKindName, DrawingManagerOptions, ToolName } from "./drawing-manager";
+export type { Drawing, DrawingKindName, DrawingManagerOptions, DrawingToolName, ToolName } from "./drawing-manager";
 export { DEFAULT_DRAWING_STYLE, type DrawingStyle } from "./lib/drawing-style";
 export { DEFAULT_FIB_LEVELS, type FibLevel } from "./lib/fib-levels";
 export { DEFAULT_BOX_STYLE, type BoxStyle, type BoxData, type FibData } from "./model";

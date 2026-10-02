@@ -1,20 +1,21 @@
 import type { ChartPlugin, ChartPluginContext, ClickResult, Teardown, ToolEnv } from "../harness/chart-plugin";
 import { MeasuringToolPrimitive } from "../primitives/MeasuringToolPrimitive";
+import { PctMeasuringPrimitive } from "../primitives/PctMeasuringPrimitive";
 import { createDrawingGeometry } from "../harness/drawing-gesture-geometry";
 import { computeMeasurement, type MeasurePoint } from "../lib/chart-measure";
 
 /**
  * Two-click measure: anchor, then end. The result stays until the next chart
- * click. Not a drawing — never stored. Terminal's measuring
- * tool without the magnet and the range-mode reset.
+ * click. Not a drawing — never stored. Terminal's measuring tools without the
+ * range-mode reset: "measure" shows price, ticks, bars and time; "measure-pct" the percentage.
  */
-export function createMeasureTool(env: ToolEnv): ChartPlugin {
-  const primitive = new MeasuringToolPrimitive();
+export function createMeasureTool(env: ToolEnv, tool: "measure" | "measure-pct" = "measure"): ChartPlugin {
+  const primitive = tool === "measure" ? new MeasuringToolPrimitive() : new PctMeasuringPrimitive();
   let justFinalized = false;
-  const armed = () => env.tools.activeTool === "measure";
+  const armed = () => env.tools.activeTool === tool;
 
   return {
-    name: "measuring-tool",
+    name: tool === "measure" ? "measuring-tool" : "pct-measuring-tool",
     clickPriority: 200,
 
     primitives() {
@@ -44,7 +45,7 @@ export function createMeasureTool(env: ToolEnv): ChartPlugin {
         const pos = geometry.paneCoords(e);
         if (!pos) return null;
         const s = geometry.sampleAt(pos.x, pos.y);
-        return s?.rawPrice == null || s.time == null ? null : { price: s.rawPrice, time: s.time };
+        return s?.magnetPrice == null || s.time == null ? null : { price: s.magnetPrice, time: s.time };
       };
 
       const onMouseDown = (e: MouseEvent) => {
@@ -92,8 +93,8 @@ export function createMeasureTool(env: ToolEnv): ChartPlugin {
       };
 
       // Another tool was armed (or none) mid-measurement: abandon it. A finished measurement has no anchor, so it stays.
-      const unsubTool = env.tools.subscribe((tool) => {
-        if (tool !== "measure" && anchor) cancel(false);
+      const unsubTool = env.tools.subscribe((next) => {
+        if (next !== tool && anchor) cancel(false);
       });
 
       const doc = container.ownerDocument;
