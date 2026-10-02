@@ -1,9 +1,13 @@
 import type { IChartApi, ISeriesApi, SeriesType, Time } from "lightweight-charts";
 
-type Bar = { time: number };
+/** A bar's time plus whatever price levels it carries: OHLC for candles/bars, value for line-like series. */
+export type Bar = { time: number; open?: number; high?: number; low?: number; close?: number; value?: number };
 
 /** What chart-measure resolves times and measurements against, per chart. */
-export type ChartEnv = { getBars(): readonly Bar[]; tickSize(): number };
+export type ChartEnv = { getBars(): readonly Bar[]; tickSize(): number; magnet?(): boolean };
+
+/** Vertical pixel distance within which the magnet snaps to a bar's price level. */
+const MAGNET_THRESHOLD_PX = 8;
 
 const chartEnvs = new WeakMap<IChartApi, ChartEnv>();
 
@@ -103,6 +107,46 @@ export function priceConverter(chart: IChartApi, series: PriceConverter): PriceC
 
 export function priceAtY(series: PriceConverter, y: number): number | null {
   return series.coordinateToPrice(y);
+}
+
+/**
+ * Soft magnet: the hovered bar's price level (OHLC, or value) nearest Y when it
+ * is within MAGNET_THRESHOLD_PX, else the raw price. Null only when the raw
+ * price is unresolvable. Ignores the chart's magnet toggle.
+ */
+export function magnetPriceAtY(chart: IChartApi, series: PriceConverter, x: number, y: number): number | null {
+  const raw = series.coordinateToPrice(y);
+  if (raw == null) return null;
+  const logical = chart.timeScale().coordinateToLogical(x);
+  if (logical == null) return raw;
+  const bar = getPriceBars(chart)[Math.round(logical)];
+  if (!bar) return raw;
+
+  let best = raw;
+  let bestDist = MAGNET_THRESHOLD_PX;
+  for (const level of [bar.open, bar.high, bar.low, bar.close, bar.value]) {
+    if (level == null) continue;
+    const ly = series.priceToCoordinate(level);
+    if (ly == null) continue;
+    const dist = Math.abs(ly - y);
+    if (dist < bestDist) {
+      bestDist = dist;
+      best = level;
+    }
+  }
+  return best;
+}
+
+/** magnetPriceAtY when the chart's magnet is on, else the raw price. */
+export function softMagnetPriceAtY(chart: IChartApi, series: PriceConverter, x: number, y: number): number | null {
+  return chartEnvs.get(chart)?.magnet?.() ? magnetPriceAtY(chart, series, x, y) : priceAtY(series, y);
+}
+
+/** The snapped price, or null when the magnet is off or no level is within reach. */
+export function magnetSnap(chart: IChartApi, series: PriceConverter, x: number, y: number): number | null {
+  if (!chartEnvs.get(chart)?.magnet?.()) return null;
+  const snapped = magnetPriceAtY(chart, series, x, y);
+  return snapped == null || snapped === series.coordinateToPrice(y) ? null : snapped;
 }
 
 /**

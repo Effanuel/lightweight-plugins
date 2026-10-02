@@ -9,7 +9,7 @@ beforeEach(() => {
   env = makeEnv();
 });
 
-function mount() {
+function mount(tool: "measure" | "measure-pct" = "measure") {
   const { container, fire } = makeDom();
   (container as unknown as { getBoundingClientRect: () => DOMRect }).getBoundingClientRect = () =>
     ({ left: 0, top: 0, width: 900, height: 400 }) as DOMRect;
@@ -19,7 +19,7 @@ function mount() {
   };
   registerChartEnv(chart as never, { getBars: () => [{ time: 0 }, { time: 10 }], tickSize: () => 0.01 });
   const ctx = { chart, series: { priceToCoordinate: (p: number) => p, coordinateToPrice: (c: number) => c }, container } as unknown as ChartPluginContext;
-  const plugin = createMeasureTool(env);
+  const plugin = createMeasureTool(env, tool);
   const teardown = plugin.onMount!(ctx);
   const primitive = plugin.primitives()[0] as unknown as { measurement: unknown };
   return { plugin, ctx, fire, teardown, primitive, chart };
@@ -83,6 +83,19 @@ describe("measure tool", () => {
     fire("container", "mousedown", mouse(50, 80.006));
     const m = primitive.measurement as { start: { price: number }; end: { price: number } };
     expect([m.start.price, m.end.price]).toEqual([100, 80.01]);
+  });
+
+  test("measure-pct answers only to its own tool", () => {
+    const { fire, primitive } = mount("measure-pct");
+    env.tools.setActiveTool("measure");
+    fire("container", "mousedown", mouse(10, 100));
+    fire("container", "mousedown", mouse(50, 80));
+    expect(primitive.measurement).toBeFalsy();
+    env.tools.setActiveTool("measure-pct");
+    fire("container", "mousedown", mouse(10, 100));
+    fire("container", "mousedown", mouse(50, 80));
+    expect(primitive.measurement).toMatchObject({ pctChange: -20 });
+    expect(env.tools.activeTool).toBeNull();
   });
 
   test("a finished measurement survives the automatic disarm", () => {

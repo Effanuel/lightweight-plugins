@@ -13,4 +13,11 @@ for (const name of EXPECTED) assert.notEqual(mod[name], undefined, name);
 const bundle = readFileSync(new URL('../dist/index.js', import.meta.url), 'utf8');
 assert.doesNotMatch(bundle, /Lightweight Charts™/, 'does not bundle lightweight-charts');
 
-console.log(`smoke ok: ${EXPECTED.length} exports, lightweight-charts external`);
+// The React subpath: one component, React external, marked for client-only rendering.
+const react = await import('../dist/react.js');
+assert.deepEqual(Object.keys(react), ['DrawingSettings'], 'react runtime exports');
+const reactBundle = readFileSync(new URL('../dist/react.js', import.meta.url), 'utf8');
+assert.match(reactBundle, /^"use client";/, 'react entry keeps "use client"');
+assert.doesNotMatch(reactBundle, /react\.production|__SECRET_INTERNALS|ReactSharedInternals/, 'does not bundle React');
+
+console.log(`smoke ok: ${EXPECTED.length} exports + DrawingSettings, lightweight-charts and React external`);
